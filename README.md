@@ -1,65 +1,89 @@
 [![DOI](https://zenodo.org/XYZ.svg)](https://doi.org/XYZ)
 
-# sturtevant-et-al_202X_Journal_food_ammonia
+# sturtevant-etal_202X_Journal
 
-**Food system implications of ammonia use in GCAM**
+**Food security impacts of ammonia energy transformation**
 
-Jillian Sturtevant<sup>1</sup>, Page Kyle<sup>2\*</sup>, Xin Zhang<sup>1</sup>, Paul Wolfram<sup>2</sup>, Hassan Niazi<sup>2</sup> et al.
+Jillian Sturtevant<sup>1</sup>, Page Kyle<sup>2\*</sup>, Paul Wolfram<sup>2</sup>, Hassan Niazi<sup>2</sup>, Xin Zhang<sup>1</sup>, Sarah Garvey<sup>1</sup>, et al.
 
-<sup>1 </sup> Appalachian Laboratory, University of Maryland Center for Environmental Science (UMCES); 
-<sup>2 </sup> Joint Global Change Research Institute, Pacific Northwest National Laboratory (JGCRI-PNNL)
+<sup>1 </sup> Appalachian Laboratory, University of Maryland Center for Environmental Science (UMCES); <sup>2 </sup> Joint Global Change Research Institute, Pacific Northwest National Laboratory (JGCRI-PNNL)
 
-\* corresponding authors: jillian.sturtevant@umces.edu | pkyle@pnnl.gov 
-
+\* corresponding authors: jillian.sturtevant@umces.edu | pkyle@pnnl.gov
 
 ## Abstract
-High-level 1-2 sentences on what the paper is about and what it finds. 
 
+Using ammonia to mitigate CO<sub>2</sub> emissions from maritime shipping poses potentially major food security risks. Ammonia is the prime source of nitrogen used in fertilizers. At the same time, ammonia demands for decarbonizing shipping fuels may exceed those for agriculture. This study uses GCAM to provide a first integrated quantitative analysis of the net impacts of simultaneous supply and demand shocks to ammonia markets globally, together and in isolation, across food and energy systems through the mid-21st century.
 
-This repository contains key data files, model, and scripts used to support the analysis in the manuscript referenced below. 
+This repository contains key data files, model, and scripts used to support the analysis in the manuscript referenced below.
 
 ## Journal reference
+
 TBD
 
-## Repository Ovevrview
+## Repository Overview
 
-The folder structure and scripts used in this analysis are described below.
+The folder structure and scripts used in this analysis are described below. Each folder contains a `README.md` file with more details.
 
+| Folders | Description |
+|----|----|
+| [`data/`](/data/) | Input data files used in the analysis. See [data readme](data/README.md) for more details |
+| [`model/`](/model/) | GCAM model used in the analysis. Should be cloned from the [GCAM repository](https://github.com/pkyle/gcam-core). See [model](#model) for the version details and [model readme](model/README.md) for more information on the model setup |
+| [`figures/`](/figures/) | Figures from analysis scripts in the repo. See [figures readme](figures/README.md) for more details |
 
-| Folder name          | Description |
-|----                  |----|
-| [`data`](#data)      | Input data files used in the analysis |
-| [`model/`](#model)   | GCAM files used in the analysis |
-| [`output/`](#output) | Output data from GCAM and analysis scripts in the repo |
-
-
-Scripts used in the analysis are described below.
-
-| Script | Description |
-| --- | --- |
-| `extract_gcam.R` | R script to extract GCAM output data using `rgcam`|
-| `figures.R` | R script to generate figures in the manuscript |
+The main scripts and files used in the analysis are:
+| Files     | Description                                        |
+|----|----|
+| `load.R`      | R script to extract GCAM output data using `rgcam` and load key environment variables |
+| `figures.R`   | R script to generate figures in the manuscript     |
+| `food_ammonia.proj` | GCAM output data project file generated from `load.R` using `rgcam` |
+| `queries_ammonia.xml` | XML file containing GCAM queries used in `load.R` |
 
 
 ## Reproduce my experiment
 
-For first-time users of GCAM, please follow the guidance on [GCAM wiki](http://jgcri.github.io/gcam-doc/toc.html) to setup GCAM or for background knowledge.
+For first-time users of GCAM, follow the guidance on [GCAM wiki](http://jgcri.github.io/gcam-doc/toc.html) to setup GCAM or for background knowledge.
 
-### Model  
+### Model 
+
 | Model | Version | Repository Link | DOI |
-|-------|---------|-----------------|-----|
-| GCAM | v8 | https://github.com | *[![DOI]()]() |
-| R | 4.0.2 | https://cran.r-project.org/ | *[![DOI]()]() |
+|----|----|----|----|
+| GCAM | v7.2 | https://github.com/pkyle/gcam-core | [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11481167.svg)](https://doi.org/10.5281/zenodo.11481167) |
+| R | 4.5.1 | <https://cran.r-project.org/> | - |
+
+### Steps
+High-level steps to reproduce the analysis are: 
+
+1.  Clone this repository: 
+```bash
+    git clone https://github.com/JGCRI/sturtevant_food_ammonia.git
+```
+
+You will **_not_** need raw GCAM model files to run the analysis scripts, but if you want to get them, initialize and update the submodules:
+
+```bash
+    cd sturtevant_food_ammonia
+    git submodule update --init model/gcam-core
+```
+
+2.  Run [`figures.R`](figures.R) to generate figures in the manuscript
+
+3.  Run [`load.R`](load.R) to set up the R environment, install required packages, and load GCAM output data
+    - Set `INSTALL_PACKAGES <- TRUE` in [`load.R`](load.R) to install required packages
+    - Set `QUERY_GCAM <- TRUE` in [`load.R`](load.R) to re-query GCAM output data. 
+        - This requires GCAM output database to be present in [`outputs/database_basexdb`](./outputs/database_basexdb) folder. See [model readme](model/README.md) for instructions to run GCAM and generate the output database.
 
 
+Detailed instructions are in the `README.md` files in each folder (e.g., in [data](data/README.md), [model](model/README.md), and [figures](figures/README.md) folders).
 
-### Steps 
-1. abc
-2. xyz 
-3. 
+### Outputs
+GCAM output project `food_ammonia.proj` contains the relevant results of the analysis. 
 
-### Outputs 
+The raw GCAM output database will be in the [`outputs/database_basexdb`](./outputs/database_basexdb) folder and could be produced by running GCAM with instructions in the [model readme](model/README.md).
+
+Analysis outputs `food_ammonia.proj` are generated by the [`load.R`](load.R) script. GCAM output database should be produced before running `load.R` with `QUERY_GCAM <- TRUE`.
+
+## Contact
+
+Open an issue on this repository by navigating to the [Issues tab](https://github.com/JGCRI/sturtevant_food_ammonia/issues) or contact the corresponding author.
 
 
-### Contact
-Open an issue on this repository or contact the corresponding author.

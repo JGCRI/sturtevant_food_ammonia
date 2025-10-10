@@ -3,3 +3,5 @@
 .RData
 .Ruserdata
 .github/
+.DS_Store
+.vscode/

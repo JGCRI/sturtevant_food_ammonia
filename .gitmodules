@@ -1,4 +1,4 @@
-[submodule "model/gcam-foodammonia"]
-	path = model/gcam-foodammonia
+[submodule "model/gcam-core"]
+	path = model/gcam-core
 	url = https://github.com/pkyle/gcam-core.git
 	branch = gpk/paper/agu2024

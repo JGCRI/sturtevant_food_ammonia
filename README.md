@@ -65,6 +65,21 @@ You will **_not_** need raw GCAM model files to run the analysis scripts, but if
     git submodule update --init model/gcam-core
 ```
 
+<details>
+
+<summary>To regularly update the GCAM model</summary>
+To stay up to date with the latest GCAM model changes, you can periodically run:
+
+```bash
+    git submodule update --remote model/gcam-core
+    git submodule update --remote model/gcam-core
+```
+
+or manually update it by pulling changes in the folder by `cd model/gcam-core`, running `git pull`, and then returning to the root directory `cd ../../` and registering the submodule `git add model/gcam-core`.
+
+</details>
+
+
 2.  Run [`figures.R`](figures.R) to generate figures in the manuscript
 
 3.  Run [`load.R`](load.R) to set up the R environment, install required packages, and load GCAM output data
@@ -73,7 +88,7 @@ You will **_not_** need raw GCAM model files to run the analysis scripts, but if
         - This requires GCAM output database to be present in [`outputs/database_basexdb`](./outputs/database_basexdb) folder. See [model readme](model/README.md) for instructions to run GCAM and generate the output database.
 
 
-Detailed instructions are in the `README.md` files in each folder (e.g., in [data](data/README.md), [model](model/README.md), and [figures](figures/README.md) folders).
+> Detailed instructions are in the `README.md` files in each folder (e.g., in [data](data/README.md), [model](model/README.md), and [figures](figures/README.md) folders).
 
 ### Outputs
 GCAM output project `food_ammonia.proj` contains the relevant results of the analysis. 

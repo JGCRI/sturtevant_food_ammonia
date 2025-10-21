@@ -3,6 +3,12 @@
 # Load libraries and query GCAM output
 # Hassan Niazi, Oct 2025
 
+# Change 
+#  INSTALL_PACKAGES to TRUE to install required packages
+#  QUERY_GCAM to TRUE to re-query GCAM output
+#  PATH_TO_GCAM to change the path to GCAM output
+#  FIGS_DIR to change figures sub-directory e.g., figures/v1, v2, etc.
+
 # install packages ----
 INSTALL_PACKAGES <- FALSE
 if(INSTALL_PACKAGES){
@@ -12,9 +18,8 @@ if(INSTALL_PACKAGES){
   install.packages('readr')
 
   install.packages("devtools")
-  library(devtools)
   # install the rgcam package from GitHub
-  install_github("JGCRI/rgcam", build_vignettes = TRUE)
+  devtools::install_github("JGCRI/rgcam", build_vignettes = TRUE)
 }
 
 # load libraries ----
@@ -26,7 +31,7 @@ library(readr)
 
 # paths ----
 DATA_DIR <- "data/"
-FIGS_DIR <- "figures/v0_jill/" # change the subfolder here if desired
+FIGS_DIR <- "figures/v1/" # change the subfolder here if desired
 
 # create figs dir if it doesn't exist
 if (!dir.exists(FIGS_DIR)) {
@@ -47,7 +52,7 @@ OUTPUTFILE <- "food_ammonia.proj"
 
 if (QUERY_GCAM) {
   # query variables
-  PATH_TO_GCAM <- "model/output/"
+  PATH_TO_GCAM <- "model/gcam-core/output/"
 
   SCENARIOS <- c("elec_NH3_hicost", "elec_NH3_hicost_NH3ship",
                  "elec_NH3_locost", "elec_NH3_locost_NH3ship",

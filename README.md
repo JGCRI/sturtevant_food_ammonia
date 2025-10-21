@@ -72,7 +72,6 @@ To stay up to date with the latest GCAM model changes, you can periodically run:
 
 ```bash
     git submodule update --remote model/gcam-core
-    git submodule update --remote model/gcam-core
 ```
 
 or manually update it by pulling changes in the folder by `cd model/gcam-core`, running `git pull`, and then returning to the root directory `cd ../../` and registering the submodule `git add model/gcam-core`.

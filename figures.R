@@ -11,6 +11,7 @@ source("load.R"); paste0("Figures in ", FIGS_DIR)
 
 # load data ----
 ghg_gwp <- read_csv(paste0(DATA_DIR, "ghg_gwp.csv"))
+region_mapping <- read_csv(paste0(DATA_DIR, "region_mapping.csv"))
 
 # food_ammonia_proj <- loadProject("food_ammonia.proj")
 #
@@ -476,3 +477,37 @@ food_demand_total <- food_demand %>%
   mutate(diff_from_max = value / pmax(value)) %>%
   ungroup()
 
+# Compile macroregion food demands for alternate, mapped version of food demand figure
+macroregion_food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
+  filter(year == 2035) %>%
+  group_by(scenario, region, year) %>%
+  summarise(value = sum(value)) %>%
+  ungroup() %>%
+  left_join(getQuery(food_ammonia_proj, "population by region"),
+            by = c("scenario", "region", "year"),
+            suffix = c(".pcal", ".pop")) %>%
+  left_join(region_mapping, by = "region") %>%
+  group_by(scenario, Region, year) %>%
+  summarise(value.pcal = sum(value.pcal),
+            value.pop = sum(value.pop)) %>%
+  ungroup() %>%
+  mutate(value = value.pcal * CONV_PCAL_MCAL / value.pop / DAYS_PER_YEAR)
+
+scenario_colors_unique <- c("elec_NH3_hicost" = "red",
+                     "elec_NH3_hicost_NH3ship" = "red4",
+                     "elec_NH3_locost" = "green4",
+                     "elec_NH3_locost_NH3ship" = "darkgreen",
+                     "NGCCS_NH3" = "blue",
+                     "NGCCS_NH3_NH3ship" = "darkblue")
+
+ggplot(macroregion_food_demand, aes(x = scenario, y = value, fill = scenario)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~Region) +
+  ylab("kcal/pers/d") +
+  xlab("") +
+  theme_bw() +
+  theme(axis.text.x = element_blank()) +
+  scale_fill_manual(values = scenario_colors_unique) +
+  labs(fill = "")
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "food_demand_allreg.png"), height = 6, width = 8, units = "in")}

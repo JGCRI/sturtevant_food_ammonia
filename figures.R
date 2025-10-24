@@ -511,3 +511,54 @@ ggplot(macroregion_food_demand, aes(x = scenario, y = value, fill = scenario)) +
   labs(fill = "")
 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "food_demand_allreg.png"), height = 6, width = 8, units = "in")}
+
+# Plot the food demand results on a map
+world <- map_data("world")
+
+# Use a function and then loop through the regions manually
+
+create_grob <- function(food_data, region_name){
+  p_inset <- ggplot(subset(food_data, Region == region_name),
+                  aes(x = scenario, y = value, fill = scenario)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    ylab("") +
+    xlab("") +
+    ylim(c(0,3500)) +
+    theme_void() +
+    theme(legend.position = "none") +
+    scale_fill_manual(values = scenario_colors_unique) +
+    labs(fill = "")
+
+  # Convert the inset plot to a grob
+  g_inset <- ggplotGrob(p_inset)
+  return(g_inset)
+}
+g_nam <- create_grob(food_data = macroregion_food_demand, region_name = "North America")
+g_lam <- create_grob(food_data = macroregion_food_demand, region_name = "Latin America")
+g_afr <- create_grob(food_data = macroregion_food_demand, region_name = "Africa")
+g_eur <- create_grob(food_data = macroregion_food_demand, region_name = "Europe")
+g_aus <- create_grob(food_data = macroregion_food_demand, region_name = "Australia_NZ")
+g_rus <- create_grob(food_data = macroregion_food_demand, region_name = "Russia")
+g_sea <- create_grob(food_data = macroregion_food_demand, region_name = "Southeast Asia")
+g_eas <- create_grob(food_data = macroregion_food_demand, region_name = "East Asia")
+g_swa <- create_grob(food_data = macroregion_food_demand, region_name = "South and West Asia")
+
+ggplot(world, aes(long, lat, group = group)) +
+  geom_polygon(fill = "grey90", color = "gray50") +
+  coord_fixed(1.3) +
+  theme_bw() +
+  # Place inset plots at desired coordinates
+  annotation_custom(
+    g_nam,
+    xmin = -120, xmax = -80,  # longitude bounds
+    ymin = 20, ymax = 50) +     # latitude bounds
+  annotation_custom(g_lam, xmin = -75, xmax = -35, ymin = -30, ymax = 0) +
+  annotation_custom(g_afr, xmin = 0, xmax = 40, ymin = 0, ymax = 30) +
+  annotation_custom(g_eur, xmin = -5, xmax = 35, ymin = 35, ymax = 65) +
+  annotation_custom(g_aus, xmin = 115, xmax = 155, ymin = -40, ymax = -10) +
+  annotation_custom(g_rus, xmin = 80, xmax = 120, ymin = 55, ymax = 85) +
+  annotation_custom(g_sea, xmin = 115, xmax = 155, ymin = -10, ymax = 20) +
+  annotation_custom(g_eas, xmin = 100, xmax = 140, ymin = 20, ymax = 50) +
+  annotation_custom(g_swa, xmin = 50, xmax = 90, ymin = 15, ymax = 45)
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "food_demand_map.png"), height = 6, width = 8, units = "in")}

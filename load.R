@@ -3,7 +3,7 @@
 # Load libraries and query GCAM output
 # Hassan Niazi, Oct 2025
 
-# Change 
+# Change
 #  INSTALL_PACKAGES to TRUE to install required packages
 #  QUERY_GCAM to TRUE to re-query GCAM output
 #  PATH_TO_GCAM to change the path to GCAM output
@@ -16,6 +16,8 @@ if(INSTALL_PACKAGES){
   install.packages('dplyr')
   install.packages('tidyr')
   install.packages('readr')
+  install.packages('grid')
+  install.packages('maps')
 
   install.packages("devtools")
   # install the rgcam package from GitHub
@@ -28,6 +30,8 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(readr)
+library(grid)
+library(maps)
 
 # paths ----
 DATA_DIR <- "data/"

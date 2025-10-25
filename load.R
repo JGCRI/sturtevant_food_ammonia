@@ -18,10 +18,14 @@ if(INSTALL_PACKAGES){
   install.packages('readr')
   install.packages('grid')
   install.packages('maps')
+  install.packages("patchwork")
+  install.packages("purrr")
 
   install.packages("devtools")
-  # install the rgcam package from GitHub
+
+  # install JGCRI packages from GitHub
   devtools::install_github("JGCRI/rgcam", build_vignettes = TRUE)
+  devtools::install_github("JGCRI/rmap", build_vignettes = TRUE)
 }
 
 # load libraries ----
@@ -32,6 +36,9 @@ library(tidyr)
 library(readr)
 library(grid)
 library(maps)
+library(patchwork)
+library(rmap)
+library(purrr)
 
 # paths ----
 DATA_DIR <- "data/"

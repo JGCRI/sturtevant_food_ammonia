@@ -3,7 +3,7 @@
 # originally from AGU2024 scenario set
 # by Page Kyle, December 2024
 #
-# Edited by Jillian Sturtevant and Hassan Niazi, Oct 2025
+# Edited by Jillian Sturtevant, Hassan Niazi, and Paul Wolfram, Oct 2025
 
 
 # load environment ----
@@ -19,12 +19,12 @@ region_mapping <- read_csv(paste0(DATA_DIR, "region_mapping.csv"))
 # listQueries(food_ammonia_proj)
 
 # analysis constants ----
-ANALYSIS_YEARS <- c(2020, 2035, 2050)
-ANALYSIS_YEARS_FUTURE <- c(2035, 2050)
+ANALYSIS_YEARS <- c(2020, 2025, 2030, 2035, 2040, 2045, 2050)
+ANALYSIS_YEARS_FUTURE <- c(2030, 2035, 2040, 2045, 2050)
 ANALYSIS_REGIONS <- c("Africa_Southern", "Brazil", "China", "India", "USA")
 
 # plot vars ----
-FIGS_SAVE <- TRUE
+FIGS_SAVE <- FALSE  # set to TRUE to save figures to FIGS_DIR
 scenario_levels <- c("Year 2020", "elec_NH3_hicost", "elec_NH3_locost", "NGCCS_NH3",
                      "elec_NH3_hicost_NH3ship", "elec_NH3_locost_NH3ship", "NGCCS_NH3_NH3ship")
 
@@ -59,8 +59,8 @@ ammonia_prod_tech <- getQuery(food_ammonia_proj, "ammonia production by tech") %
   ungroup()
 
 ammonia_prod_tech_filtered <- ammonia_prod_tech %>%
-  filter(year %in% ANALYSIS_YEARS) %>%
-  mutate(year = factor(year, levels = ANALYSIS_YEARS))
+  filter(year %in% c(2020, 2035, 2050)) %>%
+  mutate(year = factor(year, levels = c(2020, 2035, 2050)))
 
 ggplot(ammonia_prod_tech_filtered, aes(x = year, y = value, fill = technology)) +
   geom_bar(stat = "identity", position = "stack") +
@@ -72,26 +72,26 @@ ggplot(ammonia_prod_tech_filtered, aes(x = year, y = value, fill = technology)) 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "ammonia_prod_tech_filtered.png"), height = 6, width = 8, units = "in")}
 
 
-# ammonia_prod_tech <- getQuery(food_ammonia_proj, "ammonia production by tech") %>%
-#   filter(year %in% ANALYSIS_YEARS) %>%
-#   mutate(technology = if_else(technology == "hydrogen", "electrolysis", technology),
-#          scenario = factor(scenario, levels = scenario_levels)) %>%
-#   group_by(scenario, technology, year) %>%
-#   summarise(value = sum(value)) %>%
-#   ungroup()
-#
-# ggplot(ammonia_prod_tech, aes(x = year, y = value, fill = technology)) +
-#   geom_bar(stat = "identity", position = "fill") +
-#   facet_wrap(~scenario) +
-#   ylab("Mt NH3") +
-#   xlab("") +
-#   labs(fill = "") +
-#   theme_bw() +
-#   scale_fill_manual(values = ammonia_tech_colors)
-#
-# ggsave("figures/ammonia_prod_tech.png", height = 6, width = 8, units = "in")
+ammonia_prod_tech <- getQuery(food_ammonia_proj, "ammonia production by tech") %>%
+  filter(year %in% ANALYSIS_YEARS) %>%
+  mutate(technology = if_else(technology == "hydrogen", "electrolysis", technology),
+         scenario = factor(scenario, levels = scenario_levels)) %>%
+  group_by(scenario, technology, year) %>%
+  summarise(value = sum(value)) %>%
+  ungroup()
 
+ggplot(ammonia_prod_tech, aes(x = year, y = value, fill = technology)) +
+  geom_bar(stat = "identity", position = "fill") +
+  facet_wrap(~scenario) +
+  ylab("Mt NH3") +
+  xlab("") +
+  labs(fill = "") +
+  theme_bw() +
+  scale_fill_manual(values = ammonia_tech_colors)
 
+ggsave("figures/ammonia_prod_tech.png", height = 6, width = 8, units = "in")
+
+#################Figure 3#################
 ## H2 production by tech ----
 ##Jill Addition 5/19/2025
 # just as a diagnostic, make sure that the elec_NH3 scenarios have only green hydrogen
@@ -115,6 +115,8 @@ ggplot(hydrogen_prod_tech, aes(x = year, y = value, fill = subsector)) +
 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "hydrogen_sources_elec_NH3_hicost_NH3ship.png"), height = 5, width = 7, units = "in")}
 # ggsave("figures/Jill/hydrogen_sources.png", height = 5, width = 7, units = "in")
+# ggsave("figures/Draft2/hydrogen_sources.png", height = 5, width = 7, units = "in")
+
 
 ## H2 prod 2050
 # just as a diagnostic, make sure that the elec_NH3 scenarios have only green hydrogen
@@ -148,16 +150,24 @@ ghg_shipping <- getQuery(food_ammonia_proj, "GHG emissions by international ship
   summarise(MtCO2e = sum(MtCO2e)) %>%
   ungroup()
 
+#################Figure 1#################
+## Fuel consumption for maritime shipping ----
 ##Jill Addition 5/19/2025
 energy_densities <- read_csv(paste0(DATA_DIR, "energy_densities.csv"))
+
+Energy_Densities <- tibble(input = c("delivered diesel", "ammonia energy"),
+                           Fuel = c("Petroleum", "Ammonia"),
+                           Density_GJpertonne = c(41.868, 18.8))
+
 
 #Multiply value of hydrogen production (EJ) by 1E9 to convert to GJ, then divide by energy density (GJ/t) to get fuel consumption (t)
 fuel_consumption <- getQuery(food_ammonia_proj, "energy inputs to maritime shipping") %>%
   filter(year %in% ANALYSIS_YEARS) %>%
-  inner_join(energy_densities, by = c(scenario = "Scenario")) %>%
-  mutate(Mtyr= (value/Density)) %>%
+  inner_join(Energy_Densities, by = "input") %>%
+  mutate(Mtyr= (value * 1000 / Density_GJpertonne)) %>%
   group_by(scenario,year,Fuel) %>%
-  summarise(Mtyr = sum(Mtyr)) %>%
+  summarise(Mtyr = sum(Mtyr),
+            EJyr = sum(value)) %>%
   ungroup()
 #adjust data for new figure
 fuel_consumption_2020 <- filter(fuel_consumption, year == 2020 & scenario == "NGCCS_NH3") %>%
@@ -183,6 +193,49 @@ ggplot(fuel_consumption_plot,
 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fuel_consumption.png"), height = 6, width = 8, units = "in")}
 # ggsave("figures/Jill/fuel_consumption.png", height = 6, width = 8, units = "in")
+# ggsave("figures/D5/Figure1_2050_Mt.png", height = 6, width = 8, units = "in")
+
+# try an alternate one with the ammonia colors broken out
+alt_fuel_colors = c("Petroleum" = "chocolate",
+                    "Ammonia (green)" = "lightgreen",
+                    "Ammonia (blue)" = "skyblue")
+
+
+alt_Fuel_Consumption_plot <- Fuel_Consumption_plot %>%
+  mutate(Fuel = if_else(Fuel == "Ammonia" & grepl("NGCCS", scenario), "Ammonia (blue)", Fuel),
+         Fuel = if_else(Fuel == "Ammonia" & grepl("elec_NH3", scenario), "Ammonia (green)", Fuel))
+
+p <- ggplot(alt_Fuel_Consumption_plot,
+            aes(x = scenario, y = Mtyr, fill = Fuel)) +
+  geom_bar(stat = "identity", position = "stack") +
+  ylab("Fuel Consumption (Mt/year)") +
+  xlab("") +
+  labs(fill = "Fuel Type") +
+  theme_bw() +
+  scale_fill_manual(values = alt_fuel_colors) +  # Apply custom colors
+  theme(axis.text.x = element_text(angle = 90))
+
+ggsave("figures/D5/Figure1_alt_2050_Mt.png", height = 6, width = 8, units = "in")
+
+Fuel_Consumption_complete <- Fuel_Consumption %>%
+  complete(nesting(scenario,Fuel), year = ANALYSIS_YEARS, fill = list(Mtyr = 0, EJyr = 0)) %>%
+  mutate(Fuel = if_else(Fuel == "Ammonia" & grepl("NGCCS", scenario), "Ammonia (blue)", Fuel),
+         Fuel = if_else(Fuel == "Ammonia" & grepl("elec_NH3", scenario), "Ammonia (green)", Fuel),
+         scenario = factor(scenario, levels = scenario_levels))
+
+p <- ggplot(Fuel_Consumption_complete,
+            aes(x = year, y = Mtyr, color = Fuel)) +
+  geom_line(linewidth = 1) +
+  facet_wrap(~scenario) +
+  ylab("Fuel Consumption (Mt)") +
+  xlab("") +
+  labs(color = "Fuel Type") +
+  theme_bw() +
+  scale_color_manual(values = alt_fuel_colors) +  # Apply custom colors
+  theme(axis.text.x = element_text(angle = 90))
+
+ggsave("figures/D5/Figure1_alt_allyr_Mt.png", height = 6, width = 8, units = "in")
+
 
 # calculate the amount of fuel consumed
 subset_data_pet <- fuel_consumption %>% filter(scenario == "elec_NH3_locost")
@@ -213,7 +266,7 @@ if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "ghg_shipping.png"), height = 6, width =
 # ggsave("figures/ghg_shipping.png", height = 6, width = 8, units = "in")
 
 
-
+#################Figure 2#################
 ## H2 prices ----
 ##Jill Addition 5/19/2025
 scenario_colors_J <- c("elec_NH3_hicost" = "red",
@@ -263,6 +316,7 @@ if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "h2_prices.png"), height = 4, width = 6,
 # ggsave("figures/h2_prices.png", height = 4, width = 6, units = "in")
 
 
+#################Figure 4#################
 ## N fert prices ----
 ##Jill Addition 5/19/2025
 scenario_colors_J1 <- c("elec_NH3_hicost" = "red",
@@ -282,11 +336,12 @@ ggplot(Nfert_prices, aes(x = year, y = cost, color = scenario, linetype = NH3shi
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90)) +
   scale_color_manual(values = scenario_colors_J1) +
+  scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
   labs(x = "", y = "N Fertilizer Price ($/t NH3)", color = "NH3 Technology")
 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "Nfert_prices.png"), height = 5, width = 8, units = "in")}
 # ggsave("figures/Jill/Nfert_prices.png", height = 5, width = 8, units = "in")
-
+# ggsave("figures/Draft2/Nfert_prices.png", height = 5, width = 8, units = "in")
 
 
 Nfert_prices <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
@@ -310,6 +365,77 @@ ggplot(Nfert_prices, aes(x = year, y = cost, color = scenario, linetype = NH3shi
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "Nfert_prices.png"), height = 5, width = 8, units = "in")}
 # ggsave("figures/Nfert_prices.png", height = 5, width = 8, units = "in")
 
+
+
+# Global map of 2050 showing price increase of ammonia fertilizer relative to 2020 due to technology switching and due to ammonia shipping fuel demand
+Nfert_prices_map_2020 <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
+  filter(sector == "N fertilizer") %>%
+  mutate(value = value * CONV_USD_1975_2020 * CONV_KG_T,
+         NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))  %>%
+  filter(year == "2020") %>%
+  filter(scenario == "NGCCS_NH3") %>%
+  mutate(subRegion = region) %>%
+  select(subRegion, value)
+
+p_Nfert_prices_map_2020 <- rmap::map(Nfert_prices_map_2020)
+
+
+
+Nfert_prices_map_2050 <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
+  filter(sector == "N fertilizer") %>%
+  mutate(value = value * CONV_USD_1975_2020 * CONV_KG_T,
+         NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))  %>%
+  filter(year == "2050") %>%
+  filter(scenario == "NGCCS_NH3") %>%
+  mutate(subRegion = region) %>%
+  select(subRegion, value)
+
+p_Nfert_prices_map_2050 <- rmap::map(Nfert_prices_map_2050)
+
+
+Nfert_prices_map_2050_ship <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
+  filter(sector == "N fertilizer") %>%
+  mutate(value = value * CONV_USD_1975_2020 * CONV_KG_T,
+         NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))  %>%
+  filter(year == "2050") %>%
+  filter(scenario == "NGCCS_NH3_NH3ship") %>%
+  mutate(subRegion = region) %>%
+  select(subRegion, value)
+
+p_Nfert_prices_map_2050_ship <- rmap::map(Nfert_prices_map_2050_ship)
+
+
+N_price_impact <- reduce(
+  list(Nfert_prices_map_2020, Nfert_prices_map_2050, Nfert_prices_map_2050_ship),
+  function(x, y) merge(x, y, by = "subRegion")
+) %>%
+  mutate(
+    delta_tech = (value.y - value.x) / value.x * 100,
+    delta_ship = (value - value.y) / value.y * 100,
+    delta_total = delta_tech + delta_ship
+  ) %>%
+  select(subRegion, delta_total, delta_tech, delta_ship) %>%
+  tidyr::gather(key = "scenario", value = "value", -subRegion)
+
+N_price_impact = N_price_impact %>%
+  dplyr::mutate(scenario = factor(scenario, levels = c("delta_total","delta_tech","delta_ship")))
+
+mapx <- rmap::map(data = N_price_impact,
+                  underLayer = rmap::mapCountries,
+                  background = T,
+                  #legendFixedBreaks = c(0, 1, 2, 15, 25),
+                  #legendType = "pretty",
+                  #palette = "BrBG"
+                  #legendType = "continuous"
+)
+
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "rel_fert_price_change.png"), height = 8, width = 8, units = "in")}
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "rel_fert_price_change.pdf"), height = 8, width = 8, units = "in")}
+
+
+
+#################Figure 5#################
 ## food  prices ----
 ##Jill Addition 5/27/2025
 scenario_colors_J1 <- c("elec_NH3_hicost" = "red",
@@ -333,11 +459,14 @@ ggplot(wheat_prices, aes(x = year, y = value, color = scenario, linetype = NH3sh
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90)) +
   scale_color_manual(values = scenario_colors_J1) +
+  scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
   labs(color = "Scenario")
 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "wheat_price_index.png"), height = 6, width = 8, units = "in")}
 # ggsave("figures/Jill/wheat_price_index.png", height = 6, width = 8, units = "in")
+# ggsave("figures/Draft2/wheat_price_index.png", height = 6, width = 8, units = "in")
 
+#################Jill 5/27/2025- Not in current draft
 ### Rice ----
 rice_prices <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
   filter(year %in% ANALYSIS_YEARS,
@@ -399,10 +528,12 @@ ggplot(soybean_prices, aes(x = year, y = value, color = scenario, linetype = NH3
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90)) +
   scale_color_manual(values = scenario_colors_J1) +
+  scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
   labs(color = "Scenario")
 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "soybean_price_index.png"), height = 6, width = 8, units = "in")}
 # ggsave("figures/Jill/soybean_price_index.png", height = 6, width = 8, units = "in")
+# ggsave("figures/Draft2/soybean_price_index.png", height = 6, width = 8, units = "in")
 
 ### Legumes ----
 legumes_prices <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
@@ -447,6 +578,7 @@ ggplot(wheat_prices, aes(x = year, y = cost, color = scenario, linetype = NH3shi
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "wheat_prices.png"), height = 6, width = 8, units = "in")}
 # ggsave("figures/wheat_prices.png", height = 6, width = 8, units = "in")
 
+#################Figure 6#################
 ## food demand ----
 food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
   filter(year %in% ANALYSIS_YEARS_FUTURE,
@@ -470,6 +602,7 @@ ggplot(food_demand, aes(x = scenario, y = value, fill = type)) +
 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "food_demand.png"), height = 6, width = 8, units = "in")}
 # ggsave("figures/food_demand.png", height = 6, width = 8, units = "in")
+# ggsave("figures/Draft2/food_demand.png", height = 6, width = 8, units = "in")
 
 food_demand_total <- food_demand %>%
   group_by(scenario, region, year) %>%
@@ -477,6 +610,8 @@ food_demand_total <- food_demand %>%
   mutate(diff_from_max = value / pmax(value)) %>%
   ungroup()
 
+
+## macro region food demands ----
 # Compile macroregion food demands for alternate, mapped version of food demand figure
 macroregion_food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
   filter(year == 2035) %>%

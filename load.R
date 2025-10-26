@@ -20,6 +20,9 @@ if(INSTALL_PACKAGES){
   install.packages('maps')
   install.packages("patchwork")
   install.packages("purrr")
+  install.packages("ggtext")
+  install.packages("egg")
+
 
   install.packages("devtools")
 
@@ -39,6 +42,8 @@ library(maps)
 library(patchwork)
 library(rmap)
 library(purrr)
+library(ggtext)
+library(egg)
 
 # paths ----
 DATA_DIR <- "data/"
@@ -84,12 +89,11 @@ print(paste0("Queries: ", listQueries(food_ammonia_proj)))
 
 
 # query results ----
-q_ammonia_prod_tech <- getQuery(food_ammonia_proj, "ammonia production by tech")
-q_hydrogen_prod_tech <- getQuery(food_ammonia_proj, "hydrogen production by tech")
-q_nfertilizer_h2_prices <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices")
-q_ag_commodity_prices <- getQuery(food_ammonia_proj, "ag commodity prices")
-q_ghg_emiss_ship <- getQuery(food_ammonia_proj, "GHG emissions by international shipping")
-q_food_demand <- getQuery(food_ammonia_proj, "food demand")
-q_population_region <- getQuery(food_ammonia_proj, "population by region")
-q_energy_inputs_ship <- getQuery(food_ammonia_proj, "energy inputs to maritime shipping")
-
+# q_ammonia_prod_tech <- getQuery(food_ammonia_proj, "ammonia production by tech")
+# q_hydrogen_prod_tech <- getQuery(food_ammonia_proj, "hydrogen production by tech")
+# q_nfertilizer_h2_prices <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices")
+# q_ag_commodity_prices <- getQuery(food_ammonia_proj, "ag commodity prices")
+# q_ghg_emiss_ship <- getQuery(food_ammonia_proj, "GHG emissions by international shipping")
+# q_food_demand <- getQuery(food_ammonia_proj, "food demand")
+# q_population_region <- getQuery(food_ammonia_proj, "population by region")
+# q_energy_inputs_ship <- getQuery(food_ammonia_proj, "energy inputs to maritime shipping")

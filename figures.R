@@ -12,6 +12,7 @@ source("load.R"); paste0("Figures in ", FIGS_DIR)
 # load data ----
 ghg_gwp <- read_csv(paste0(DATA_DIR, "ghg_gwp.csv"))
 region_mapping <- read_csv(paste0(DATA_DIR, "region_mapping.csv"))
+# energy_densities <- read_csv(paste0(DATA_DIR, "energy_densities.csv"))
 
 # food_ammonia_proj <- loadProject("food_ammonia.proj")
 #
@@ -46,9 +47,448 @@ scenario_colors <- c("elec_NH3_hicost" = "red",
                      "NGCCS_NH3" = "blue",
                      "NGCCS_NH3_NH3ship" = "blue")
 
+# fuel colors
+fuel_colors = c("Petroleum" = "chocolate", "Ammonia" = "green3")
+
+
+# for fuels: try an alternate one with the ammonia colors broken out
+alt_fuel_colors = c("Petroleum" = "chocolate",
+                    "Ammonia (green)" = "green3",
+                    "Ammonia (blue)" = "dodgerblue")
+
+# for prices
+scenario_colors_J <- c("elec_NH3_hicost" = "red",
+                       "elec_NH3_locost" = "green4")
+
+# H2 tech and subsector colors
+h2_tech_colors = c("biomass to H2" = "green3",
+                     "biomass to H2 CCS" = "green",
+                     "coal chemical CCS" = "gray20",
+                     "electrolysis" = "lightgreen",
+                     "gas ATR CCS" = "darkblue",
+                     "natural gas steam reforming" = "dodgerblue")
+
+h2_subsector_colors = c("biomass" = "green3",
+                         "coal" = "gray20",
+                         "electricity" = "lightgreen",
+                         "gas" = "dodgerblue",
+                         "nuclear" = "orange",
+                         "solar" = "yellow1",
+                         "wind" = "lightblue2")
+
+mytheme <- theme_minimal() + theme(
+  panel.background = element_blank(),
+  # panel.grid.major = element_blank(),
+  panel.grid.major = element_line(color = "gray95", linewidth = 0.2),
+  panel.grid.minor = element_blank(),
+  panel.border = element_rect(fill = NA, color = "black"),
+  strip.text = element_text(face = "bold"),
+  # plot.title = element_text(face = "bold"),
+  # show x and y ticks
+  axis.ticks = element_line(color = "black"),
+  # legend.position = "bottom"
+  legend.text = element_text(size = 9),     # labels inside the legend
+  legend.title = element_text(size = 9, face = "bold")
+)
+
 # plots ----
 
-## NH3 production by tech ----
+###############################################################################%
+
+# Fig 1 Fuel consumption for maritime shipping ----
+Energy_Densities <- tibble(input = c("delivered diesel", "ammonia energy"),
+                           Fuel = c("Petroleum", "Ammonia"),
+                           Density_GJpertonne = c(41.868, 18.8))
+
+
+# multiply value of hydrogen production (EJ) by 1E9 to convert to GJ, then divide by energy density (GJ/t) to get fuel consumption (t)
+fuel_consumption <- getQuery(food_ammonia_proj, "energy inputs to maritime shipping") %>%
+  filter(year %in% ANALYSIS_YEARS) %>%
+  inner_join(Energy_Densities, by = "input") %>%
+  mutate(Mtyr= (value * 1e9 / (Density_GJpertonne * 1e6))) %>%
+  group_by(scenario, year, Fuel) %>%
+  summarise(Mtyr = sum(Mtyr),
+            EJyr = sum(value)) %>%
+  ungroup()
+
+# chose elements to plot
+fuel_consumption_2020 <- filter(fuel_consumption, year == 2020 & scenario == "NGCCS_NH3") %>%
+  mutate(scenario = "Year 2020")
+fuel_consumption_2050 <- filter(fuel_consumption, year == 2050)
+fuel_consumption_plot <- bind_rows(fuel_consumption_2020, fuel_consumption_2050) %>%
+  mutate(scenario = factor(scenario, levels = scenario_levels))
+
+# fuel consumption by scenario
+ggplot(fuel_consumption_plot,
+       aes(x = scenario, y = Mtyr, fill = Fuel)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(x = "", y = "Fuel Consumption (Mt/year)", fill = "Fuel Type") +
+  mytheme +
+  scale_fill_manual(values = fuel_colors) +
+  theme(axis.text.x = element_text(angle = 90))
+# result is how much fuel is required for different energy technologies producing hydrogen
+
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig1fuel_consumption.png"), height = 6, width = 8, units = "in")}
+
+# alt plot with blue and green ammonia
+alt_Fuel_Consumption_plot <- fuel_consumption_plot %>%
+  mutate(Fuel = if_else(Fuel == "Ammonia" & grepl("NGCCS", scenario), "Ammonia (blue)", Fuel),
+         Fuel = if_else(Fuel == "Ammonia" & grepl("elec_NH3", scenario), "Ammonia (green)", Fuel))
+
+ggplot(alt_Fuel_Consumption_plot,
+       aes(x = scenario, y = Mtyr, fill = Fuel)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(x = "", y = "Fuel Consumption (Mt/year)", fill = "Fuel Type") +
+  mytheme +
+  scale_fill_manual(values = alt_fuel_colors) +
+  theme(axis.text.x = element_text(angle = 90))
+
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig1_alt_2050_Mt.png"), height = 6, width = 8, units = "in")}
+
+Fuel_Consumption_complete <- fuel_consumption %>%
+  complete(nesting(scenario,Fuel), year = ANALYSIS_YEARS, fill = list(Mtyr = 0, EJyr = 0)) %>%
+  mutate(Fuel = if_else(Fuel == "Ammonia" & grepl("NGCCS", scenario), "Ammonia (blue)", Fuel),
+         Fuel = if_else(Fuel == "Ammonia" & grepl("elec_NH3", scenario), "Ammonia (green)", Fuel),
+         scenario = factor(scenario, levels = scenario_levels))
+
+# Mt in weight terms
+ggplot(Fuel_Consumption_complete,
+       aes(x = year, y = Mtyr, color = Fuel)) +
+  geom_line(linewidth = 1) +
+  facet_wrap(~scenario) +
+  labs(x = "", y = "Fuel Consumption (Mt)", color = "Fuel Type") +
+  mytheme +
+  scale_color_manual(values = alt_fuel_colors) +
+  theme(axis.text.x = element_text(angle = 90), legend.position = "bottom")
+
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig1_alt_allyr_Mt.png"), height = 6, width = 8, units = "in")}
+
+# EJ in energy terms
+ggplot(Fuel_Consumption_complete,
+       aes(x = year, y = EJyr, color = Fuel)) +
+  geom_line(linewidth = 1) +
+  facet_wrap(~scenario) +
+  ylab("Fuel Consumption (EJ)") +
+  xlab("") +
+  labs(color = "Fuel Type") +
+  theme_bw() +
+  scale_color_manual(values = alt_fuel_colors) +
+  theme(axis.text.x = element_text(angle = 90), legend.position = "bottom")
+
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig1_alt_allyr_EJ.png"), height = 6, width = 8, units = "in")}
+
+
+## combined fuels and energy ----
+
+# scale energy to match fuel consumption visually
+scale_factor <- max(Fuel_Consumption_complete$Mtyr, na.rm = TRUE) /
+  max(Fuel_Consumption_complete$EJyr, na.rm = TRUE)
+
+# combined lines
+ggplot(Fuel_Consumption_complete) +
+  geom_line(aes(x = year, y = Mtyr, color = Fuel), linetype = "solid", linewidth = 1) +
+  geom_line(aes(x = year, y = EJyr * scale_factor, color = Fuel), linetype = "dashed", linewidth = 1) +
+  facet_wrap(~scenario) +
+  scale_y_continuous(name = "Fuel Consumption (Mt)",
+                     sec.axis = sec_axis(~ . / scale_factor, name = "Energy (EJ/yr)")) +
+  labs(x = "", color = "Fuel Type", fill = "Fuel Type") +
+  theme_bw() +
+  scale_color_manual(values = alt_fuel_colors) +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90), legend.position = "bottom")
+
+
+# combined with bar chart
+fig1 <- ggplot(Fuel_Consumption_complete, aes(x = year)) +
+  # bar chart for EJyr (scaled to match Mtyr visually)
+  geom_bar(aes(y = EJyr * scale_factor, fill = Fuel),
+           stat = "identity", position = "stack", alpha = 0.2) +
+  geom_text(data = subset(Fuel_Consumption_complete, EJyr > 0),
+            aes(y = EJyr * scale_factor, label = round(EJyr, 1), group = Fuel),
+            position = position_stack(vjust = 1), size = 3, color = "gray70") +
+  # line for Mtyr
+  geom_line(aes(y = Mtyr, color = Fuel), linewidth = 1) +
+  facet_wrap(~scenario) +
+  scale_y_continuous(name = "<b>Fuel Consumption (Mt)</b> <span style='color:gray;'>── line</span>",
+                     sec.axis = sec_axis(~ . / scale_factor,
+                                         name = "<b>Fuel Energy (EJ)</b> <span style='color:gray;'>■ bar</span>")) +
+  # scale_y_continuous(name = "Fuel Consumption (Mt) — ⎯ line",
+  #                    sec.axis = sec_axis(~ . / scale_factor, name = "Energy (EJ/yr) — ■ bar")) +
+  # scale_y_continuous(name = "Fuel Consumption (Mt)",
+  #                    sec.axis = sec_axis(~ . / scale_factor, name = "Energy (EJ/yr)")) +
+  labs(x = "", color = "Fuel Type", fill = "Fuel Type") +
+  scale_color_manual(values = alt_fuel_colors) +
+  scale_fill_manual(values = alt_fuel_colors) +
+  theme_bw() +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90), legend.position = "bottom",
+        axis.title.y = element_markdown(size = 11),
+        axis.title.y.right = element_markdown(size = 11),
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 10, face = "bold")
+        )
+fig1
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig1_fuel_energy.png"), height = 4, width = 6, units = "in")}
+
+# calculate the amount of fuel consumed
+subset_data_pet <- fuel_consumption %>% filter(scenario == "elec_NH3_locost")
+subset_data_amm <- fuel_consumption %>% filter(scenario == "elec_NH3_locost_NH3ship")
+
+locost_pet<-max(subset_data_pet$Mtyr)
+locost_amm<-max(subset_data_amm$Mtyr)
+locost_amm-locost_pet
+
+
+
+###############################################################################%
+
+# Fig 2 H2 prices ----
+
+h2_prices <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
+  filter(year %in% ANALYSIS_YEARS,
+         sector == "H2 central production",
+         grepl("elec_NH3", scenario)) %>%
+  mutate(cost = value * CONV_USD_1975_2020 * H2_GJ_kg,
+         NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))
+
+
+h2_prices_stats <- h2_prices %>%
+  summarise(mean_cost = mean(cost, na.rm = TRUE),
+            min_cost  = min(cost, na.rm = TRUE),
+            max_cost  = max(cost, na.rm = TRUE))
+
+# all regions
+ggplot(h2_prices) +
+  geom_line(aes(x = year, y = cost, color = scenario, linetype = NH3ship), linewidth = 0.5) +
+  # add a sample mean horizontal line for reference
+  geom_hline(yintercept = mean(h2_prices$cost), linetype = "dotted", color = "gray50") +
+  geom_hline(yintercept = max(h2_prices$cost), linetype = "dotted", color = "red3") +
+  geom_hline(yintercept = min(h2_prices$cost), linetype = "dotted", color = "green3") +
+  geom_text(data = h2_prices_stats,
+            aes(x = max(h2_prices$year), y = max(h2_prices$cost), label = paste0("Global Max: $", round(max(h2_prices$cost), 2), "/kg")),
+            hjust = 1, vjust = -0.5, color = "red3", size = 2) +
+  geom_text(data = h2_prices_stats,
+            aes(x = max(h2_prices$year), y = mean(h2_prices$cost), label = paste0("Global Mean: $", round(mean(h2_prices$cost), 2), "/kg")),
+            hjust = 1, vjust = -0.5, color = "gray50", size = 2) +
+  geom_text(data = h2_prices_stats,
+            aes(x = max(h2_prices$year), y = min(h2_prices$cost), label = paste0("Global Min: $", round(min(h2_prices$cost), 2), "/kg")),
+            hjust = 1, vjust = 1.5, color = "green4", size = 2) +
+  labs(x = "", y = "H2 Price ($/kg)", color = "Scenario") +
+  ylim(0, 6.95) +
+  facet_wrap(~region, ncol = 8) +
+  mytheme +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 90)) +
+  scale_color_manual(values = scenario_colors_J)
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_h2_prices_allregions.png"), height = 9, width = 16, units = "in")}
+
+# only min, max and USA region
+ggplot(h2_prices %>% filter(region %in% c("Indonesia", "USA", "South Africa")) %>%
+       mutate(region = factor(region, levels = c("Indonesia", "USA", "South Africa")))) +
+  geom_line(aes(x = year, y = cost, color = scenario, linetype = NH3ship), linewidth = 0.5) +
+  # add a sample mean horizontal line for reference
+  geom_hline(yintercept = mean(h2_prices$cost), linetype = "dotted", color = "gray50") +
+  geom_hline(yintercept = max(h2_prices$cost), linetype = "dotted", color = "red3") +
+  geom_hline(yintercept = min(h2_prices$cost), linetype = "dotted", color = "green3") +
+  geom_text(data = h2_prices_stats,
+            aes(x = min(h2_prices$year), y = max(h2_prices$cost), label = paste0("Global Max: $", round(max(h2_prices$cost), 2), "/kg")),
+            hjust = 0, vjust = -0.5, color = "red3", size = 3) +
+  geom_text(data = h2_prices_stats,
+            aes(x = mean(h2_prices$year), y = mean(h2_prices$cost), label = paste0("Global Mean: $", round(mean(h2_prices$cost), 2), "/kg")),
+            hjust = 0.5, vjust = -0.5, color = "gray50", size = 3) +
+  geom_text(data = h2_prices_stats,
+            aes(x = max(h2_prices$year), y = min(h2_prices$cost), label = paste0("Global Min: $", round(min(h2_prices$cost), 2), "/kg")),
+            hjust = 1, vjust = 1.5, color = "green4", size = 3) +
+  labs(x = "", y = "H2 Price ($/kg)", color = "Scenario") +
+  ylim(0, 6.95) +
+  facet_wrap(~region, ncol = 8) +
+  mytheme +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 90)) +
+  scale_color_manual(values = scenario_colors_J)
+
+# USA prices
+fig2 <- ggplot(h2_prices %>% filter(region == "USA")) +
+  geom_line(aes(x = year, y = cost, color = scenario, linetype = NH3ship)) +
+  scale_color_manual(values = scenario_colors) +
+  labs(x = "", y = "H2 Price ($/kg)", color = "Scenario") +
+  ylim(0, NA) +
+  mytheme +
+  theme(axis.title.y = element_text(face = "bold"), legend.position = c(0.15, 0.15))
+
+fig2
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_h2_prices_usa.png"), height = 4, width = 6, units = "in")}
+
+
+###############################################################################%
+# Fig 3 H2 production by tech ----
+
+## everything H2 production ----
+hydrogen_prod_tech <- getQuery(food_ammonia_proj, "hydrogen production by tech") %>%
+  filter(year %in% ANALYSIS_YEARS) %>%
+  group_by(scenario, subsector, technology, year) %>%
+  summarise(value = sum(value) * 1 / H2_GJ_kg) %>%
+  ungroup() %>%
+  mutate(scenario = factor(scenario, levels = scenario_levels))
+
+(
+  # stacked by subsector
+  ggplot(hydrogen_prod_tech, aes(x = year, y = value, fill = subsector)) +
+    geom_bar(stat = "identity", position = "stack") +
+    facet_wrap(~scenario) +
+    labs(x = "", y = "H2 production Source (Mt H2)", fill = "Hydrogen Sources") +
+    mytheme +
+    theme(axis.text.x = element_text(angle = 90)) +
+    scale_fill_manual(values = h2_subsector_colors)+
+    scale_x_continuous(breaks = seq(min(ANALYSIS_YEARS), max(ANALYSIS_YEARS), by = 5))
+
+  |
+    # filled by subsector
+    ggplot(hydrogen_prod_tech, aes(x = year, y = value, fill = subsector)) +
+    geom_bar(stat = "identity", position = "fill") +
+    facet_wrap(~scenario) +
+    labs(x = "", y = "H2 production Source (Fraction)", fill = "Hydrogen Sources") +
+    mytheme +
+    theme(axis.text.x = element_text(angle = 90)) +
+    scale_fill_manual(values = h2_subsector_colors)+
+    scale_x_continuous(breaks = seq(min(ANALYSIS_YEARS), max(ANALYSIS_YEARS), by = 5))
+
+) / (
+  # stacked by tech
+  ggplot(hydrogen_prod_tech, aes(x = year, y = value, fill = technology)) +
+    geom_bar(stat = "identity", position = "stack") +
+    facet_wrap(~scenario) +
+    labs(x = "", y = "H2 production Tech (Mt H2)", fill = "Hydrogen Tech") +
+    mytheme +
+    theme(axis.text.x = element_text(angle = 90)) +
+    scale_fill_manual(values = h2_tech_colors)+
+    scale_x_continuous(breaks = seq(min(ANALYSIS_YEARS), max(ANALYSIS_YEARS), by = 5))
+  |
+    # filled by tech
+    ggplot(hydrogen_prod_tech, aes(x = year, y = value, fill = technology)) +
+    geom_bar(stat = "identity", position = "fill") +
+    facet_wrap(~scenario) +
+    labs(x = "", y = "H2 production Tech (Fraction)", fill = "Hydrogen Tech") +
+    mytheme +
+    theme(axis.text.x = element_text(angle = 90)) +
+    scale_fill_manual(values = h2_tech_colors)+
+    scale_x_continuous(breaks = seq(min(ANALYSIS_YEARS), max(ANALYSIS_YEARS), by = 5))
+) +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_hydrogen_prod_master.png"), height = 5, width = 7, units = "in")}
+
+# one scenario: make sure that the elec_NH3 scenarios have only green hydrogen
+hydrogen_prod_tech_onescen <- hydrogen_prod_tech %>%
+  filter(scenario == "elec_NH3_hicost_NH3ship")
+
+ggplot(hydrogen_prod_tech_onescen, aes(x = year, y = value, fill = subsector)) +
+  geom_bar(stat = "identity", position = "fill") +
+  labs(x = "elec_NH3_hicost_NH3ship", y = "Fraction of H2 production", fill = "Hydrogen Sources") +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90)) +
+  scale_fill_manual(values = hydrogen_colors)+
+  scale_x_continuous(breaks = seq(min(hydrogen_prod_tech$year), max(hydrogen_prod_tech$year), by = 5))
+
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "hydrogen_sources_elec_NH3_hicost_NH3ship.png"), height = 5, width = 7, units = "in")}
+
+
+## H2 prod 2050 ----
+# focus on 2050 only for the elec_NH3 scenarios
+hydrogen_prod_tech_2050 <- getQuery(food_ammonia_proj, "hydrogen production by tech") %>%
+  filter(year == 2050,
+         grepl("elec_NH3", scenario)) %>%
+  group_by(scenario, subsector, technology, year) %>%
+  summarise(value = sum(value) * 1 / H2_GJ_kg) %>%
+  ungroup() %>%
+  mutate(scenario = factor(scenario, levels = scenario_levels))
+
+ggplot(hydrogen_prod_tech_2050, aes(x = scenario, y = value, fill = subsector)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(x = "", y = "Hydrogen production (Mt H2)", fill = "H2 Sources") +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90)) +
+  scale_fill_manual(values = hydrogen_colors)
+
+# get percentages on the bar plot
+h2prod_plot <- hydrogen_prod_tech_2050 %>%
+  group_by(scenario) %>%
+  # arrange by the actual stacking order (bottom to top: wind, solar, nuclear)
+  arrange(match(subsector, c("wind", "solar", "nuclear"))) %>%
+  mutate(pct = round(100 * value / sum(value), 1),
+         pos = cumsum(value) - 0.5 * value,
+         # label = paste0(round(value, 1), " Mt\n", round(pct, 0), "%")
+         label = paste0(round(pct, 0), "%"))
+
+fig3 <- ggplot(h2prod_plot, aes(x = scenario, y = value, fill = subsector)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = pos, label = label, color = "white"), size = 3, show.legend = T) +
+  scale_color_manual(values = hydrogen_colors) +
+  scale_fill_manual(values = hydrogen_colors) +
+  labs(x = "", y = "Hydrogen Production (Mt H2)", fill = "H2 Sources", color = "text") +
+  guides(fill = guide_legend(override.aes = list(label = "%", size = 2)), color = "none") +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 10),
+        axis.title.y = element_text(face = "bold"),
+        legend.position = c(0.08, 0.9))
+
+fig3
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_hydrogen_prod_2050.png"), height = 5, width = 7, units = "in")}
+
+hydrogen_plot_fill <- hydrogen_prod_tech_2050 %>%
+  group_by(scenario) %>%
+  mutate(share = value / sum(value) * 100) %>%
+  ungroup()
+
+ggplot(hydrogen_plot_fill, aes(x = scenario, y = value, fill = subsector)) +
+  geom_bar(stat = "identity", position = "fill") +                # normalize to 100%
+  geom_text(aes(label = ifelse(share > 1, paste0(round(share, 0), "%"), "")),
+            position = position_fill(vjust = 0.5),                # <-- centers text automatically
+            size = 3, color = "gray50", fontface = "bold") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = hydrogen_colors) +
+  labs(x = NULL, y = "Share of H2 (%)", fill = "Hydrogen Sources") +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+        legend.position = "bottom")
+
+
+
+###############################################################################%
+
+# True fig 1 combined panels ----
+# fig 1 two thirds, fig 2 one third
+fig1_combo <- (fig1 |
+                ((fig3 + theme(legend.position = c(0.1, 0.85),
+                              legend.key.size = unit(0.5, "cm"),
+                              # axis.text.x = element_text(angle = 0)
+                              )) /
+                (fig2 + theme(legend.position = c(0.21, 0.25),
+                              legend.spacing = unit(0.001, "cm"), # reduce vertical gap between legend breaks
+                              legend.key.height = unit(0.4, "cm"), # reduce vertical spacing in legend keys
+                              legend.text = element_text(size = 8)))
+              ) # + plot_layout(heights = c(0.995, 1.05))
+              ) +
+  plot_annotation(tag_levels = 'a') +
+  plot_layout(widths = c(2, 1)) &
+  theme(plot.tag = element_text(face = "bold", size = 14))
+
+fig1_combo
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig1_combo.png"), height = 10, width = 15, units = "in")}
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig1_combo.pdf"), height = 10, width = 15, units = "in")}
+
+
+
+
+
+###############################################################################%
+
+
+# NH3 production by tech ----
 ## Jill Addition 5/27/2025
 ammonia_prod_tech <- getQuery(food_ammonia_proj, "ammonia production by tech") %>%
   # filter(year %in% ANALYSIS_YEARS) %>%
@@ -66,7 +506,8 @@ ggplot(ammonia_prod_tech_filtered, aes(x = year, y = value, fill = technology)) 
   geom_bar(stat = "identity", position = "stack") +
   facet_wrap(~scenario) +
   labs(x = "", y = "Mt NH3", fill = "NH3 Technology") +
-  theme_bw() +
+  mytheme +
+  # theme_bw() +
   scale_fill_manual(values = ammonia_tech_colors)
 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "ammonia_prod_tech_filtered.png"), height = 6, width = 8, units = "in")}
@@ -86,236 +527,17 @@ ggplot(ammonia_prod_tech, aes(x = year, y = value, fill = technology)) +
   ylab("Mt NH3") +
   xlab("") +
   labs(fill = "") +
-  theme_bw() +
+  # theme_bw() +
+  mytheme +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 10, face = "bold")) +
   scale_fill_manual(values = ammonia_tech_colors)
 
-ggsave("figures/ammonia_prod_tech.png", height = 6, width = 8, units = "in")
-
-#################Figure 3#################
-## H2 production by tech ----
-##Jill Addition 5/19/2025
-# just as a diagnostic, make sure that the elec_NH3 scenarios have only green hydrogen
-hydrogen_prod_tech <- getQuery(food_ammonia_proj, "hydrogen production by tech") %>%
-  filter(scenario == "elec_NH3_hicost_NH3ship",
-         grepl("elec_NH3", scenario)) %>%
-  group_by(scenario, subsector, technology, year) %>%
-  summarise(value = sum(value) * 1 / H2_GJ_kg) %>%
-  ungroup() %>%
-  mutate(scenario = factor(scenario, levels = scenario_levels))
-
-ggplot(hydrogen_prod_tech, aes(x = year, y = value, fill = subsector)) +
-  geom_bar(stat = "identity", position = "fill") +
-  ylab("Mt H2") +
-  xlab("elec_NH3_hicost_NH3ship") +
-  labs(fill = "Hydrogen Sources") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90)) +
-  scale_fill_manual(values = hydrogen_colors)+
-  scale_x_continuous(breaks = seq(min(hydrogen_prod_tech$year), max(hydrogen_prod_tech$year), by = 5))
-
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "hydrogen_sources_elec_NH3_hicost_NH3ship.png"), height = 5, width = 7, units = "in")}
-# ggsave("figures/Jill/hydrogen_sources.png", height = 5, width = 7, units = "in")
-# ggsave("figures/Draft2/hydrogen_sources.png", height = 5, width = 7, units = "in")
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "ammonia_prod_tech.png"), height = 6, width = 8, units = "in")}
 
 
-## H2 prod 2050
-# just as a diagnostic, make sure that the elec_NH3 scenarios have only green hydrogen
-hydrogen_prod_tech_2050 <- getQuery(food_ammonia_proj, "hydrogen production by tech") %>%
-  filter(year == 2050,
-         grepl("elec_NH3", scenario)) %>%
-  group_by(scenario, subsector, technology, year) %>%
-  summarise(value = sum(value) * 1 / H2_GJ_kg) %>%
-  ungroup() %>%
-  mutate(scenario = factor(scenario, levels = scenario_levels))
-
-ggplot(hydrogen_prod_tech_2050, aes(x = scenario, y = value, fill = subsector)) +
-  geom_bar(stat = "identity", position = "stack") +
-  ylab("Mt H2") +
-  xlab("") +
-  labs(fill = "") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90)) +
-  scale_fill_manual(values = hydrogen_colors)
-
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "hydrogen_sources_2050.png"), height = 5, width = 7, units = "in")}
-# ggsave("figures/hydrogen_sources.png", height = 5, width = 7, units = "in")
-
-## GHG emissions from shipping ----
-# check the emission reduction from switching to ammonia shipping
-ghg_shipping <- getQuery(food_ammonia_proj, "GHG emissions by international shipping") %>%
-  filter(year %in% ANALYSIS_YEARS) %>%
-  inner_join(ghg_gwp, by = c(ghg = "GHG")) %>%
-  mutate(MtCO2e = value * GWP) %>%
-  group_by(scenario, ghg, year) %>%
-  summarise(MtCO2e = sum(MtCO2e)) %>%
-  ungroup()
-
-#################Figure 1#################
-## Fuel consumption for maritime shipping ----
-##Jill Addition 5/19/2025
-energy_densities <- read_csv(paste0(DATA_DIR, "energy_densities.csv"))
-
-Energy_Densities <- tibble(input = c("delivered diesel", "ammonia energy"),
-                           Fuel = c("Petroleum", "Ammonia"),
-                           Density_GJpertonne = c(41.868, 18.8))
-
-
-#Multiply value of hydrogen production (EJ) by 1E9 to convert to GJ, then divide by energy density (GJ/t) to get fuel consumption (t)
-fuel_consumption <- getQuery(food_ammonia_proj, "energy inputs to maritime shipping") %>%
-  filter(year %in% ANALYSIS_YEARS) %>%
-  inner_join(Energy_Densities, by = "input") %>%
-  mutate(Mtyr= (value * 1000 / Density_GJpertonne)) %>%
-  group_by(scenario,year,Fuel) %>%
-  summarise(Mtyr = sum(Mtyr),
-            EJyr = sum(value)) %>%
-  ungroup()
-#adjust data for new figure
-fuel_consumption_2020 <- filter(fuel_consumption, year == 2020 & scenario == "NGCCS_NH3") %>%
-  mutate(scenario = "Year 2020")
-fuel_consumption_2050 <- filter(fuel_consumption, year == 2050)
-fuel_consumption_plot <- bind_rows(fuel_consumption_2020, fuel_consumption_2050) %>%
-  mutate(scenario = factor(scenario, levels = scenario_levels))
-
-# colors
-fuel_colors = c("Petroleum" = "chocolate", "Ammonia" = "lightgreen")
-
-#adjust plot
-ggplot(fuel_consumption_plot,
-            aes(x = scenario, y = Mtyr, fill = Fuel)) +
-  geom_bar(stat = "identity", position = "stack") +
-  ylab("Fuel Consumption (Mt/year)") +
-  xlab("") +
-  labs(fill = "Fuel Type") +
-  theme_bw() +
-  scale_fill_manual(values = fuel_colors) +  # Apply custom colors
-  theme(axis.text.x = element_text(angle = 90))
-#result is how much fuel is required for different energy technologies producing hydrogen
-
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fuel_consumption.png"), height = 6, width = 8, units = "in")}
-# ggsave("figures/Jill/fuel_consumption.png", height = 6, width = 8, units = "in")
-# ggsave("figures/D5/Figure1_2050_Mt.png", height = 6, width = 8, units = "in")
-
-# try an alternate one with the ammonia colors broken out
-alt_fuel_colors = c("Petroleum" = "chocolate",
-                    "Ammonia (green)" = "lightgreen",
-                    "Ammonia (blue)" = "skyblue")
-
-
-alt_Fuel_Consumption_plot <- Fuel_Consumption_plot %>%
-  mutate(Fuel = if_else(Fuel == "Ammonia" & grepl("NGCCS", scenario), "Ammonia (blue)", Fuel),
-         Fuel = if_else(Fuel == "Ammonia" & grepl("elec_NH3", scenario), "Ammonia (green)", Fuel))
-
-p <- ggplot(alt_Fuel_Consumption_plot,
-            aes(x = scenario, y = Mtyr, fill = Fuel)) +
-  geom_bar(stat = "identity", position = "stack") +
-  ylab("Fuel Consumption (Mt/year)") +
-  xlab("") +
-  labs(fill = "Fuel Type") +
-  theme_bw() +
-  scale_fill_manual(values = alt_fuel_colors) +  # Apply custom colors
-  theme(axis.text.x = element_text(angle = 90))
-
-ggsave("figures/D5/Figure1_alt_2050_Mt.png", height = 6, width = 8, units = "in")
-
-Fuel_Consumption_complete <- Fuel_Consumption %>%
-  complete(nesting(scenario,Fuel), year = ANALYSIS_YEARS, fill = list(Mtyr = 0, EJyr = 0)) %>%
-  mutate(Fuel = if_else(Fuel == "Ammonia" & grepl("NGCCS", scenario), "Ammonia (blue)", Fuel),
-         Fuel = if_else(Fuel == "Ammonia" & grepl("elec_NH3", scenario), "Ammonia (green)", Fuel),
-         scenario = factor(scenario, levels = scenario_levels))
-
-p <- ggplot(Fuel_Consumption_complete,
-            aes(x = year, y = Mtyr, color = Fuel)) +
-  geom_line(linewidth = 1) +
-  facet_wrap(~scenario) +
-  ylab("Fuel Consumption (Mt)") +
-  xlab("") +
-  labs(color = "Fuel Type") +
-  theme_bw() +
-  scale_color_manual(values = alt_fuel_colors) +  # Apply custom colors
-  theme(axis.text.x = element_text(angle = 90))
-
-ggsave("figures/D5/Figure1_alt_allyr_Mt.png", height = 6, width = 8, units = "in")
-
-
-# calculate the amount of fuel consumed
-subset_data_pet <- fuel_consumption %>% filter(scenario == "elec_NH3_locost")
-subset_data_amm <- fuel_consumption %>% filter(scenario == "elec_NH3_locost_NH3ship")
-
-locost_pet<-max(subset_data_pet$Mtyr)
-locost_amm<-max(subset_data_amm$Mtyr)
-locost_amm-locost_pet
-
-
-
-ghg_shipping_2020 <- filter(ghg_shipping, year == 2020 & scenario == "NGCCS_NH3") %>%
-  mutate(scenario = "Year 2020")
-ghg_shipping_2050 <- filter(ghg_shipping, year == 2050)
-ghg_shipping_plot <- bind_rows(ghg_shipping_2020, ghg_shipping_2050) %>%
-  mutate(scenario = factor(scenario, levels = scenario_levels))
-
-ggplot(ghg_shipping_plot,
-            aes(x = scenario, y = MtCO2e, fill = ghg)) +
-  geom_bar(stat = "identity", position = "stack") +
-  ylab("Mt CO2e") +
-  xlab("") +
-  labs(fill = "") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90))
-
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "ghg_shipping.png"), height = 6, width = 8, units = "in")}
-# ggsave("figures/ghg_shipping.png", height = 6, width = 8, units = "in")
-
-
-#################Figure 2#################
-## H2 prices ----
-##Jill Addition 5/19/2025
-scenario_colors_J <- c("elec_NH3_hicost" = "red",
-                     "elec_NH3_locost" = "green4")
-h2_prices <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
-  filter(year %in% ANALYSIS_YEARS,
-         sector == "H2 central production",
-         region == "USA",
-         grepl("elec_NH3", scenario)) %>%
-  mutate(cost = value * CONV_USD_1975_2020 * H2_GJ_kg,
-         NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))
-
-ggplot(h2_prices, aes(x = year, y = cost, color = scenario, linetype = NH3ship)) +
-  geom_line() +
-  ylab("$/kg") +
-  xlab("") +
-  ylim(0, NA) +
-  theme_bw() +
-  scale_color_manual(values = scenario_colors_J) +
-  labs(color = "Scenario")
-
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "h2_prices.png"), height = 4, width = 6, units = "in")}
-# ggsave("figures/Jill/h2_prices.png", height = 4, width = 6, units = "in")
-
-
-
-
-# prices
-h2_prices <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
-  filter(year %in% ANALYSIS_YEARS,
-         sector == "H2 central production",
-         region == "USA",
-         grepl("elec_NH3", scenario)) %>%
-  mutate(cost = value * CONV_USD_1975_2020 * H2_GJ_kg,
-         NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))
-
-ggplot(h2_prices, aes(x = year, y = cost, color = scenario, linetype = NH3ship)) +
-  geom_line() +
-  ylab("$/kg") +
-  xlab("") +
-  ylim(0, NA) +
-  theme_bw() +
-  scale_color_manual(values = scenario_colors) +
-  labs(fill = "")
-
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "h2_prices.png"), height = 4, width = 6, units = "in")}
-# ggsave("figures/h2_prices.png", height = 4, width = 6, units = "in")
-
-
+###############################################################################%
 #################Figure 4#################
 ## N fert prices ----
 ##Jill Addition 5/19/2025
@@ -434,9 +656,11 @@ if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "rel_fert_price_change.png"), height = 8
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "rel_fert_price_change.pdf"), height = 8, width = 8, units = "in")}
 
 
+###############################################################################%
+
 
 #################Figure 5#################
-## food  prices ----
+# food  prices ----
 ##Jill Addition 5/27/2025
 scenario_colors_J1 <- c("elec_NH3_hicost" = "red",
                         "elec_NH3_locost" = "green4",
@@ -578,8 +802,11 @@ ggplot(wheat_prices, aes(x = year, y = cost, color = scenario, linetype = NH3shi
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "wheat_prices.png"), height = 6, width = 8, units = "in")}
 # ggsave("figures/wheat_prices.png", height = 6, width = 8, units = "in")
 
+
+###############################################################################%
+
 #################Figure 6#################
-## food demand ----
+# food demand ----
 food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
   filter(year %in% ANALYSIS_YEARS_FUTURE,
          region %in% ANALYSIS_REGIONS) %>%
@@ -611,7 +838,10 @@ food_demand_total <- food_demand %>%
   ungroup()
 
 
-## macro region food demands ----
+
+###############################################################################%
+
+# macro region food demands ----
 # Compile macroregion food demands for alternate, mapped version of food demand figure
 macroregion_food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
   filter(year == 2035) %>%
@@ -697,3 +927,37 @@ ggplot(world, aes(long, lat, group = group)) +
   annotation_custom(g_swa, xmin = 50, xmax = 90, ymin = 15, ymax = 45)
 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "food_demand_map.png"), height = 6, width = 8, units = "in")}
+
+
+
+
+###############################################################################%
+
+# GHG emissions from shipping ----
+# check the emission reduction from switching to ammonia shipping
+ghg_shipping <- getQuery(food_ammonia_proj, "GHG emissions by international shipping") %>%
+  filter(year %in% ANALYSIS_YEARS) %>%
+  inner_join(ghg_gwp, by = c(ghg = "GHG")) %>%
+  mutate(MtCO2e = value * GWP) %>%
+  group_by(scenario, ghg, year) %>%
+  summarise(MtCO2e = sum(MtCO2e)) %>%
+  ungroup()
+
+ghg_shipping_2020 <- filter(ghg_shipping, year == 2020 & scenario == "NGCCS_NH3") %>%
+  mutate(scenario = "Year 2020")
+ghg_shipping_2050 <- filter(ghg_shipping, year == 2050)
+ghg_shipping_plot <- bind_rows(ghg_shipping_2020, ghg_shipping_2050) %>%
+  mutate(scenario = factor(scenario, levels = scenario_levels))
+
+ggplot(ghg_shipping_plot,
+       aes(x = scenario, y = MtCO2e, fill = ghg)) +
+  geom_bar(stat = "identity", position = "stack") +
+  ylab("Mt CO2e") +
+  xlab("") +
+  labs(fill = "") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "ghg_shipping.png"), height = 6, width = 8, units = "in")}
+# ggsave("figures/ghg_shipping.png", height = 6, width = 8, units = "in")
+

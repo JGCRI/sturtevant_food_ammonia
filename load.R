@@ -61,6 +61,7 @@ CONV_KG_T <- 1000
 H2_GJ_kg <- 0.1202
 DAYS_PER_YEAR <- 365.25
 CONV_PCAL_MCAL <- 1e9
+CONV_NH3_N <- 14/17    # convert mass of NH3 to mass of N
 
 # query GCAM ----
 QUERY_GCAM <- FALSE # set to TRUE to re-query GCAM output

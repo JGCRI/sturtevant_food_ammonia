@@ -548,7 +548,7 @@ Nfert_prices <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") 
   filter(year %in% ANALYSIS_YEARS,
          sector == "N fertilizer",
          region %in% ANALYSIS_REGIONS) %>%
-  mutate(cost = value * CONV_USD_1975_2020 * CONV_KG_T,
+  mutate(cost = value * CONV_USD_1975_2020 * CONV_KG_T * CONV_NH3_N,
          NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))
 #graph
 ggplot(Nfert_prices, aes(x = year, y = cost, color = scenario, linetype = NH3ship)) +
@@ -570,7 +570,7 @@ Nfert_prices <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") 
   filter(year %in% ANALYSIS_YEARS,
          sector == "N fertilizer",
          region %in% ANALYSIS_REGIONS) %>%
-  mutate(cost = value * CONV_USD_1975_2020 * CONV_KG_T,
+  mutate(cost = value * CONV_USD_1975_2020 * CONV_KG_T * CONV_NH3_N,
          NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))
 
 ggplot(Nfert_prices, aes(x = year, y = cost, color = scenario, linetype = NH3ship)) +

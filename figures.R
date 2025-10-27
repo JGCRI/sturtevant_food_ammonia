@@ -47,6 +47,12 @@ scenario_colors <- c("elec_NH3_hicost" = "red",
                      "NGCCS_NH3" = "blue",
                      "NGCCS_NH3_NH3ship" = "blue")
 
+scenario_colors_unique <- c("elec_NH3_hicost" = "red",
+                            "elec_NH3_hicost_NH3ship" = "red4",
+                            "elec_NH3_locost" = "green4",
+                            "elec_NH3_locost_NH3ship" = "darkgreen",
+                            "NGCCS_NH3" = "blue",
+                            "NGCCS_NH3_NH3ship" = "darkblue")
 
 # for H2 prices
 scenario_colors_J <- c("elec_NH3_hicost" = "red",
@@ -561,8 +567,7 @@ ggplot(ammonia_prod_tech_plot) +
 ## NH3 fert prices ----
 Nfert_prices <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
   filter(year %in% ANALYSIS_YEARS,
-         sector == "N fertilizer",
-         region %in% ANALYSIS_REGIONS) %>%
+         sector == "N fertilizer") %>%
   mutate(cost = value * CONV_USD_1975_2020 * CONV_KG_T * CONV_NH3_N,
          NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))
 
@@ -673,7 +678,7 @@ ggplot(Nfert_prices %>% filter(region %in% c("India", "USA", "South Africa", "In
   scale_color_manual(values = scenario_colors_J1)
 
 
-## True fig 2 composite ----
+# True fig 2 composite ----
 fig2_combo <- (
                  ((fig4a + theme(legend.position = "bottom",
                                  legend.key.size = unit(0.4, "cm"),
@@ -696,7 +701,7 @@ fig2_combo
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_combo.png"), height = 7, width = 14, units = "in")}
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_combo.pdf"), height = 7, width = 14, units = "in")}
 
-### maps ----
+### NH3 maps ----
 # global map of 2050 showing price increase of ammonia fertilizer relative to 2020 due to technology switching and due to ammonia shipping fuel demand
 Nfert_prices_map_2020 <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
   filter(sector == "N fertilizer") %>%
@@ -766,178 +771,318 @@ mapx <- rmap::map(data = N_price_impact,
 
 ###############################################################################%
 
+# Fig 5 food  prices ----
 
-#################Figure 5#################
-# food  prices ----
-##Jill Addition 5/27/2025
-scenario_colors_J1 <- c("elec_NH3_hicost" = "red",
-                        "elec_NH3_locost" = "green4",
-                        "NGCCS_NH3" = "blue")
-### Wheat ----
-wheat_prices <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
-  filter(year %in% ANALYSIS_YEARS,
-         sector == "Wheat",
-         region %in% ANALYSIS_REGIONS) %>%
-           group_by(scenario, region) %>% mutate(value = value / value[year==2020]) %>% ungroup()
+# TODO: finalize major crops to show
+# ANALYSIS_CROPS <- c("Wheat", "Rice", "Corn", "Soybean")
 
-NH3ship = if_else(grepl("NH3ship", wheat_prices$scenario), TRUE, FALSE)
+## prices indices ----
+ag_prices_index <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
+  filter(year %in% ANALYSIS_YEARS, sector != c("UnmanagedLand")) %>%
+  group_by(scenario, sector, region) %>%
+  mutate(index = value / value[year == 2020]) %>% ungroup() %>%
+  mutate(NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))
 
 
-ggplot(wheat_prices, aes(x = year, y = value, color = scenario, linetype = NH3ship)) +
+### all regions ----
+# plot ag prices all regions all crops: sector region
+ggplot(ag_prices_index) +
+  geom_line(aes(x = year, y = index, color = scenario, linetype = NH3ship)) +
+  facet_grid(sector ~ region, # scales = "free_y"
+             ) +
+  labs(x = "Year", y = "Price Index (rel. 2020)", color = "Scenario") +
+  scale_color_manual(values = scenario_colors_J1) +
+  scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90))
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "ag_price_indices_allregions.png"), height = 19, width = 32, units = "in")}
+
+
+# plot ag prices all regions all crops: scenario region
+ggplot(ag_prices_index %>% filter(!grepl("NH3ship", scenario))) +
+  geom_line(aes(x = year, y = index, color = sector, linetype = NH3ship)) +
+  facet_grid(scenario ~ region, # scales = "free_y"
+  ) +
+  labs(x = "Year", y = "Price Index (rel. 2020)", color = "Scenario") +
+  # scale_color_manual(values = scenario_colors_J1) +
+  scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90))
+
+
+### diff ships ----
+# TODO: change between NH3ship vs no NH3ship in 2050 as a side plot
+
+# ag prices change in 2050 between NH3ship vs no NH3ship
+
+# separate NH3ship and non-NH3ship scenarios
+without_nh3 <- ag_prices_index %>%
+  filter(!grepl("_NH3ship$", scenario)) %>%
+  select(scenario, sector, region, year, index) %>%
+  rename(without_NH3ship = index, base_scenario = scenario)
+
+with_nh3 <- ag_prices_index %>%
+  filter(grepl("_NH3ship$", scenario)) %>%
+  select(scenario, sector, region, year, index) %>%
+  mutate(base_scenario = gsub("_NH3ship$", "", scenario)) %>%
+  select(base_scenario, sector, region, year, index) %>%
+  rename(with_NH3ship = index)
+
+# join them together
+ag_price_diffs <- without_nh3 %>%
+  inner_join(with_nh3, by = c("base_scenario", "sector", "year", "region")) %>%
+  mutate(diff = with_NH3ship - without_NH3ship,
+         pct_diff = round(100 * (with_NH3ship - without_NH3ship) / without_NH3ship, 1),
+         abs_pct_diff = abs(pct_diff))
+
+
+ag_price_diffs_2050 <- ag_price_diffs %>% filter(year == 2050)
+
+
+### diff ships plots ----
+# arrows in 2050 showing price changes due to NH3shipping
+ggplot(ag_price_diffs_2050) +
+  geom_segment(aes(x = "NH3ship_FALSE", xend = "NH3ship_TRUE",
+                   y = without_NH3ship, yend = with_NH3ship),
+               arrow = arrow(length = unit(0.1, "cm")), color = "gray50") +
+    facet_grid(sector~region)
+
+# heatmap of percentage differences in 2050 prices due to NH3shipping
+ggplot(ag_price_diffs_2050,
+       aes(x = sector, y = region, fill = pct_diff)) +
+  geom_tile(color = "white", size = 0.1) +
+  facet_wrap(~base_scenario) +
+  # scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0, name = "Change (%)") +
+  # if value is positive keep colors red otherwise create the gradient
+  scale_fill_gradientn(colors = c("blue", "white", "red"),
+                       values = scales::rescale(c(min(ag_price_diffs_2050$pct_diff),
+                                                   0,
+                                                   max(ag_price_diffs_2050$pct_diff))),
+                       name = "Change (%)") +
+  labs(x = "", y = "",
+       subtitle = paste0("Agricultural Price Index Change in 2050 due to NH3 Shipping. \n",
+                  "Positive values indicate price increase due to NH3 shipping. ",
+                  # spell out unique region_sector positive combinations
+                  "The only positive region_sectors are: ",
+                  paste0(ag_price_diffs_2050 %>%
+                           filter(pct_diff > 0) %>%
+                           mutate(region_sector = paste0(region, "_", sector)) %>%
+                           pull(region_sector) %>%
+                           unique(), collapse = ", ")
+                  )) +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.subtitle = element_text(hjust = 0.5),
+        strip.text = element_text(size = 10))
+
+
+
+# highlight top 50 changes
+top_changes <- ag_price_diffs %>%
+  group_by(base_scenario) %>%
+  slice_max(abs_pct_diff, n = 50)
+
+ggplot(top_changes, aes(x = region, y = sector, fill = pct_diff)) +
+  geom_tile(color = "white", size = 0.1) +
+  facet_grid(year~base_scenario) +
+  scale_fill_gradient2(
+    low = "blue", mid = "white", high = "red",
+    midpoint = 0, name = "% Change"
+  ) +
+  labs(x = "", y = "", subtitle = "Top 50 Agricultural Price Changes with NH3 Shipping") +
+  mytheme +
+  theme(plot.subtitle = element_text(hjust = 0.5), axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+### crops indices ----
+
+#### Wheat ----
+wheat_price_index <- ag_prices_index %>% filter(sector == "Wheat", region %in% ANALYSIS_REGIONS)
+
+ggplot(wheat_price_index, aes(x = year, y = index, color = scenario, linetype = NH3ship)) +
   geom_line() +
   facet_grid(~region) +
-  ylab("Price Index") +
-  xlab("") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90)) +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
-  labs(color = "Scenario")
+  labs(x = "Year", y = "Wheat Price Index (rel. 2020)", color = "Scenario") +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90))
 
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "wheat_price_index.png"), height = 6, width = 8, units = "in")}
-# ggsave("figures/Jill/wheat_price_index.png", height = 6, width = 8, units = "in")
-# ggsave("figures/Draft2/wheat_price_index.png", height = 6, width = 8, units = "in")
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "price_index_wheat.png"), height = 6, width = 8, units = "in")}
 
-#################Jill 5/27/2025- Not in current draft
-### Rice ----
-rice_prices <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
-  filter(year %in% ANALYSIS_YEARS,
-         sector == "Rice",
-         region %in% ANALYSIS_REGIONS)%>%
-  group_by(scenario, region) %>% mutate(value = value / value[year==2020]) %>% ungroup()
 
-NH3ship = if_else(grepl("NH3ship", wheat_prices$scenario), TRUE, FALSE)
+#### Rice ----
+# not in current draft
+rice_price_index <- ag_prices_index %>% filter(sector == "Rice", region %in% ANALYSIS_REGIONS)
 
-ggplot(rice_prices, aes(x = year, y = value, color = scenario, linetype = NH3ship)) +
+ggplot(rice_price_index, aes(x = year, y = index, color = scenario, linetype = NH3ship)) +
   geom_line() +
   facet_grid(~region) +
-  ylab("Price Index") +
-  xlab("") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90)) +
   scale_color_manual(values = scenario_colors_J1) +
-  labs(color = "Scenario")
+  labs(x = "Year", y = "Rice Price Index (rel. 2020)", color = "Scenario") +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90))
 
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "rice_price_index.png"), height = 6, width = 8, units = "in")}
-# ggsave("figures/Jill/rice_price_index.png", height = 6, width = 8, units = "in")")
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "price_index_rice.png"), height = 6, width = 8, units = "in")}
 
-### Corn ----
-corn_prices <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
-  filter(year %in% ANALYSIS_YEARS,
-         sector == "Corn",
-         region %in% ANALYSIS_REGIONS) %>%
-  group_by(scenario, region) %>% mutate(value = value / value[year==2020]) %>% ungroup()
 
-NH3ship = if_else(grepl("NH3ship", wheat_prices$scenario), TRUE, FALSE)
+#### Corn ----
+corn_price_index <- ag_prices_index %>% filter(sector == "Corn", region %in% ANALYSIS_REGIONS)
 
-ggplot(corn_prices, aes(x = year, y = value, color = scenario, linetype = NH3ship)) +
+ggplot(corn_price_index, aes(x = year, y = index, color = scenario, linetype = NH3ship)) +
   geom_line() +
   facet_grid(~region) +
-  ylab("Price Index") +
-  xlab("") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90)) +
   scale_color_manual(values = scenario_colors_J1) +
-  labs(color = "Scenario")
+  labs(x = "Year", y = "Corn Price Index (rel. 2020)", color = "Scenario") +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90))
 
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "corn_price_index.png"), height = 6, width = 8, units = "in")}
-# ggsave("figures/Jill/corn_price_index.png", height = 6, width = 8, units = "in")
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "price_index_corn.png"), height = 6, width = 8, units = "in")}
 
-### Soybean ----
-soybean_prices <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
-  filter(year %in% ANALYSIS_YEARS,
-         sector == "Soybean",
-         region %in% ANALYSIS_REGIONS) %>%
-  group_by(scenario, region) %>% mutate(value = value / value[year==2020]) %>% ungroup()
 
-NH3ship = if_else(grepl("NH3ship", wheat_prices$scenario), TRUE, FALSE)
+#### Soybean ----
+soybean_price_index <- ag_prices_index %>% filter(sector == "Soybean", region %in% ANALYSIS_REGIONS)
 
-ggplot(soybean_prices, aes(x = year, y = value, color = scenario, linetype = NH3ship)) +
+ggplot(soybean_price_index, aes(x = year, y = index, color = scenario, linetype = NH3ship)) +
   geom_line() +
   facet_grid(~region) +
-  ylab("Price Index") +
-  xlab("") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90)) +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
-  labs(color = "Scenario")
+  labs(x = "Year", y = "Soybean Price Index (rel. 2020)", color = "Scenario") +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90))
 
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "soybean_price_index.png"), height = 6, width = 8, units = "in")}
-# ggsave("figures/Jill/soybean_price_index.png", height = 6, width = 8, units = "in")
-# ggsave("figures/Draft2/soybean_price_index.png", height = 6, width = 8, units = "in")
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "price_index_soybean.png"), height = 6, width = 8, units = "in")}
 
-### Legumes ----
-legumes_prices <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
-  filter(year %in% ANALYSIS_YEARS,
-         sector == "Legumes",
-         region %in% ANALYSIS_REGIONS)%>%
-  group_by(scenario, region) %>% mutate(value = value / value[year==2020]) %>% ungroup()
 
-NH3ship = if_else(grepl("NH3ship", wheat_prices$scenario), TRUE, FALSE)
+#### Legumes ----
+legumes_price_index <- ag_prices_index %>% filter(sector == "Legumes", region %in% ANALYSIS_REGIONS)
 
-ggplot(legumes_prices, aes(x = year, y = value, color = scenario, linetype = NH3ship)) +
+ggplot(legumes_price_index, aes(x = year, y = index, color = scenario, linetype = NH3ship)) +
   geom_line() +
   facet_grid(~region) +
-  ylab("Price Index") +
-  xlab("") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90)) +
   scale_color_manual(values = scenario_colors_J1) +
-  labs(color = "Scenario")
+  scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
+  labs(x = "Year", y = "Legumes Price Index (rel. 2020)", color = "Scenario") +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90))
 
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "legumes_price_index.png"), height = 6, width = 8, units = "in")}
-# ggsave("figures/Jill/legumes_price_index.png", height = 6, width = 8, units = "in")
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "price_index_legumes.png"), height = 6, width = 8, units = "in")}
 
-## food commodity prices in $/t
-wheat_prices <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
-  filter(year %in% ANALYSIS_YEARS,
-         sector == "Wheat",
-         region %in% ANALYSIS_REGIONS) %>%
+
+## food commodity prices in $/t ----
+ag_prices <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
+  filter(year %in% ANALYSIS_YEARS, sector != c("UnmanagedLand")) %>%
   mutate(cost = value * CONV_USD_1975_2020 * CONV_KG_T,
          NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))
+
+# plot ag prices all regions all crops: sector region
+ggplot(ag_prices) +
+  geom_line(aes(x = year, y = cost, color = scenario, linetype = NH3ship)) +
+  facet_grid(sector ~ region, # scales = "free_y"
+  ) +
+  labs(x = "Year", y = "Price (2020$/t)", color = "Scenario") +
+  scale_color_manual(values = scenario_colors_J1) +
+  scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90))
+
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "ag_price_allregions.png"), height = 19, width = 32, units = "in")}
+
+# plot ag prices all regions all crops: scenario region
+ggplot(ag_prices %>% filter(!grepl("NH3ship", scenario))) +
+  geom_line(aes(x = year, y = cost, color = sector, linetype = NH3ship)) +
+  facet_grid(scenario ~ region, # scales = "free_y"
+  ) +
+  labs(x = "Year", y = "Price (2020$/t)", color = "Scenario") +
+  scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90))
+
+
+wheat_prices <- ag_prices %>% filter(sector == "Wheat", region %in% ANALYSIS_REGIONS)
 
 ggplot(wheat_prices, aes(x = year, y = cost, color = scenario, linetype = NH3ship)) +
   geom_line() +
   facet_grid(~region) +
-  ylab("$/t") +
-  xlab("") +
-  theme_bw() +
+  labs(x = "", y = "Wheat Prices (2020$/t)", color = "Scenario") +
+  mytheme +
   theme(axis.text.x = element_text(angle = 90)) +
-  scale_color_manual(values = scenario_colors) +
-  labs(fill = "")
+  scale_color_manual(values = scenario_colors_J1)
 
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "wheat_prices.png"), height = 6, width = 8, units = "in")}
-# ggsave("figures/wheat_prices.png", height = 6, width = 8, units = "in")
-
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "wheat_prices.png"), height = 6, width = 8, units = "in")}
 
 ###############################################################################%
 
-#################Figure 6#################
-# food demand ----
+# Fig 6 food demand ----
 food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
-  filter(year %in% ANALYSIS_YEARS_FUTURE,
-         region %in% ANALYSIS_REGIONS) %>%
+  group_by(scenario, region, input) %>%
+  mutate(index = value / value[year == 2020]) %>% ungroup() %>%
+  filter(year %in% ANALYSIS_YEARS) %>%
   mutate(type = sub("FoodDemand_", "", input)) %>%
-  select(scenario, region, type, year, value) %>%
+  select(scenario, region, type, index, year, value)
+
+(
+ggplot(food_demand, aes(x = year, y = value, fill = scenario)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_grid(type~region) +
+  scale_fill_manual(values = scenario_colors_unique) +
+  labs(x = "", y = "Food Demand (kcal/pers/d)", fill = "") +
+  mytheme
+) / (
+ggplot(food_demand, aes(x = year, y = index, fill = scenario)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_grid(type~region) +
+  scale_fill_manual(values = scenario_colors_unique) +
+  labs(x = "", y = "Food Demand (rel. 2020)", fill = "") +
+  mytheme
+) + plot_annotation(tag_levels = 'a') +
+  plot_layout(guides = "collect") &
+  theme(plot.tag = element_text(face = "bold", size = 14),
+        legend.position = "bottom",
+        axis.text.x = element_text(angle = 90),
+        legend.text = element_text(size = 8),
+        axis.title.y = element_text(face = "bold"))
+
+food_demand_pcd <- food_demand %>%
+  filter(year %in% ANALYSIS_YEARS_FUTURE) %>%
   left_join(getQuery(food_ammonia_proj, "population by region"),
             by = c("scenario", "region", "year"),
             suffix = c(".pcal", ".pop")) %>%
   mutate(value = value.pcal * CONV_PCAL_MCAL / value.pop / DAYS_PER_YEAR)
 
-ggplot(food_demand, aes(x = scenario, y = value, fill = type)) +
+(
+ggplot(food_demand_pcd, aes(x = scenario, y = value, fill = type)) +
   geom_bar(stat = "identity", position = "stack") +
   facet_grid(year ~ region) +
-  ylab("kcal/pers/d") +
-  xlab("") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90)) +
-  scale_fill_manual(values = c("Staples" = "brown", NonStaples = "blue")) +
-  labs(fill = "")
+  scale_fill_manual(values = c("Staples" = "forestgreen", NonStaples = "goldenrod1")) +
+  labs(x = "", y = "Food Demand (kcal/pers/d)", fill = "") +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0),
+        legend.position = "right")
+)/(
+ggplot(food_demand_pcd, aes(x = scenario, y = index, fill = type)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_grid(year ~ region) +
+  scale_fill_manual(values = c("Staples" = "forestgreen", NonStaples = "goldenrod1")) +
+  labs(x = "", y = "Food Demand (kcal/pers/d)", fill = "") +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0),
+        legend.position = "right")
+)
+
+ggplot(food_demand_pcd %>% filter(region %in% ANALYSIS_REGIONS), aes(x = scenario, y = value, fill = type)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_grid(~ year) +
+  scale_fill_manual(values = c("Staples" = "forestgreen", NonStaples = "goldenrod1")) +
+  labs(x = "", y = "Food Demand (kcal/pers/d)", fill = "") +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0),
+        legend.position = "right")
 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "food_demand.png"), height = 6, width = 8, units = "in")}
-# ggsave("figures/food_demand.png", height = 6, width = 8, units = "in")
-# ggsave("figures/Draft2/food_demand.png", height = 6, width = 8, units = "in")
 
 food_demand_total <- food_demand %>%
   group_by(scenario, region, year) %>%
@@ -950,7 +1095,8 @@ food_demand_total <- food_demand %>%
 ###############################################################################%
 
 # macro region food demands ----
-# Compile macroregion food demands for alternate, mapped version of food demand figure
+
+# compile macroregion food demands for alternate, mapped version of food demand figure
 macroregion_food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
   filter(year == 2035) %>%
   group_by(scenario, region, year) %>%
@@ -965,13 +1111,6 @@ macroregion_food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
             value.pop = sum(value.pop)) %>%
   ungroup() %>%
   mutate(value = value.pcal * CONV_PCAL_MCAL / value.pop / DAYS_PER_YEAR)
-
-scenario_colors_unique <- c("elec_NH3_hicost" = "red",
-                     "elec_NH3_hicost_NH3ship" = "red4",
-                     "elec_NH3_locost" = "green4",
-                     "elec_NH3_locost_NH3ship" = "darkgreen",
-                     "NGCCS_NH3" = "blue",
-                     "NGCCS_NH3_NH3ship" = "darkblue")
 
 ggplot(macroregion_food_demand, aes(x = scenario, y = value, fill = scenario)) +
   geom_bar(stat = "identity", position = "dodge") +

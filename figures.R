@@ -964,6 +964,46 @@ ggplot(top_changes, aes(x = region, y = sector, fill = pct_diff)) +
   theme(plot.subtitle = element_text(hjust = 0.5), axis.text.x = element_text(angle = 45, hjust = 1))
 
 
+### heat map with labels ----
+# calculate change in food demand from 2020 to 2050
+food_demand_changes_lab <- food_demand %>%
+  filter(!grepl("_NH3ship$", scenario)) %>% # take out without NH3ship scenarios
+  filter(year %in% c(2020, 2050)) %>%
+  select(scenario, region, type, year, value) %>%
+  pivot_wider(names_from = year, values_from = value, names_prefix = "year_") %>%
+  mutate(diff = year_2050 - year_2020,
+         pct_diff = round(100 * (year_2050 - year_2020) / year_2020, 0),
+         # flag significant changes for labeling
+         is_significant = (pct_diff) > quantile((pct_diff), 0.75) | (pct_diff) > 50,
+         is_significant_abs = abs(pct_diff) > quantile(abs(pct_diff), 0.75) | abs(pct_diff) > 50,
+         label_text = paste0(pct_diff, "%"))
+
+# create heatmap with labels
+ggplot(food_demand_changes_lab, aes(x = type, y = region, fill = pct_diff)) +
+  geom_tile(color = "white", size = 0.1) +
+  # add labels for significant changes
+  geom_text(data = filter(food_demand_changes_lab, is_significant),
+            aes(label = label_text), color = "gray50", fontface = "bold", size = 2) +
+  facet_wrap(~scenario) +
+  scale_fill_gradientn(
+    colors = c("blue", "white", "red"),
+    values = scales::rescale(c(min(food_demand_changes_lab$pct_diff),
+                               0,
+                               max(food_demand_changes_lab$pct_diff))),
+    name = "Change (%)"
+  ) +
+  labs(x = "", y = "",
+    subtitle = paste0("Food Demand Change from 2020 to 2050. \n",
+                      "Range: ", round(min(food_demand_changes_lab$pct_diff), 1), "% to ",
+                      round(max(food_demand_changes_lab$pct_diff), 1), "%.",
+                      " Labels shown for top 25% of changes.")
+  ) +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        strip.text = element_text(size = 10))
+
+
 
 ### crops indices ----
 

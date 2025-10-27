@@ -22,7 +22,7 @@ region_mapping <- read_csv(paste0(DATA_DIR, "region_mapping.csv"))
 # analysis constants ----
 ANALYSIS_YEARS <- c(2020, 2025, 2030, 2035, 2040, 2045, 2050)
 ANALYSIS_YEARS_FUTURE <- c(2030, 2035, 2040, 2045, 2050)
-ANALYSIS_REGIONS <- c("Africa_Southern", "Brazil", "China", "India", "USA")
+ANALYSIS_REGIONS <- c("Africa_Southern", "Brazil", "China", "India", "USA", "Indonesia")
 
 # plot vars ----
 FIGS_SAVE <- FALSE  # set to TRUE to save figures to FIGS_DIR
@@ -30,11 +30,11 @@ scenario_levels <- c("Year 2020", "elec_NH3_hicost", "elec_NH3_locost", "NGCCS_N
                      "elec_NH3_hicost_NH3ship", "elec_NH3_locost_NH3ship", "NGCCS_NH3_NH3ship")
 
 ammonia_tech_colors = c("coal" = "black",
-                        "coal CCS" = "darkblue",
-                        "electrolysis" = "green4",
-                        "gas" = "gray",
-                        "gas CCS" = "blue",
-                        "refined liquids" = "brown")
+                        "coal CCS" = "gray50",
+                        "electrolysis" = "lightgreen",
+                        "gas" = "dodgerblue",
+                        "gas CCS" = "lightblue",
+                        "refined liquids" = "brown3")
 
 hydrogen_colors = c("wind" = "lightblue",
                     "solar" = "yellow",
@@ -47,6 +47,17 @@ scenario_colors <- c("elec_NH3_hicost" = "red",
                      "NGCCS_NH3" = "blue",
                      "NGCCS_NH3_NH3ship" = "blue")
 
+
+# for H2 prices
+scenario_colors_J <- c("elec_NH3_hicost" = "red",
+                       "elec_NH3_locost" = "green4")
+
+# for NH3 prices
+scenario_colors_J1 <- c("elec_NH3_hicost" = "red",
+                        "elec_NH3_locost" = "green4",
+                        "NGCCS_NH3" = "blue")
+
+
 # fuel colors
 fuel_colors = c("Petroleum" = "chocolate", "Ammonia" = "green3")
 
@@ -56,9 +67,6 @@ alt_fuel_colors = c("Petroleum" = "chocolate",
                     "Ammonia (green)" = "green3",
                     "Ammonia (blue)" = "dodgerblue")
 
-# for prices
-scenario_colors_J <- c("elec_NH3_hicost" = "red",
-                       "elec_NH3_locost" = "green4")
 
 # H2 tech and subsector colors
 h2_tech_colors = c("biomass to H2" = "green3",
@@ -261,7 +269,7 @@ h2_prices_stats <- h2_prices %>%
 # all regions
 ggplot(h2_prices) +
   geom_line(aes(x = year, y = cost, color = scenario, linetype = NH3ship), linewidth = 0.5) +
-  # add a sample mean horizontal line for reference
+  # add a sample min max mean horizontal lines for reference
   geom_hline(yintercept = mean(h2_prices$cost), linetype = "dotted", color = "gray50") +
   geom_hline(yintercept = max(h2_prices$cost), linetype = "dotted", color = "red3") +
   geom_hline(yintercept = min(h2_prices$cost), linetype = "dotted", color = "green3") +
@@ -274,7 +282,7 @@ ggplot(h2_prices) +
   geom_text(data = h2_prices_stats,
             aes(x = max(h2_prices$year), y = min(h2_prices$cost), label = paste0("Global Min: $", round(min(h2_prices$cost), 2), "/kg")),
             hjust = 1, vjust = 1.5, color = "green4", size = 2) +
-  labs(x = "", y = "H2 Price ($/kg)", color = "Scenario") +
+  labs(x = "", y = "Hydrogen Price (2020$/kgH2)", color = "Scenario") +
   ylim(0, 6.95) +
   facet_wrap(~region, ncol = 8) +
   mytheme +
@@ -287,7 +295,7 @@ if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_h2_prices_allregions.png"), height
 ggplot(h2_prices %>% filter(region %in% c("Indonesia", "USA", "South Africa")) %>%
        mutate(region = factor(region, levels = c("Indonesia", "USA", "South Africa")))) +
   geom_line(aes(x = year, y = cost, color = scenario, linetype = NH3ship), linewidth = 0.5) +
-  # add a sample mean horizontal line for reference
+  # add a sample min max mean horizontal lines for reference
   geom_hline(yintercept = mean(h2_prices$cost), linetype = "dotted", color = "gray50") +
   geom_hline(yintercept = max(h2_prices$cost), linetype = "dotted", color = "red3") +
   geom_hline(yintercept = min(h2_prices$cost), linetype = "dotted", color = "green3") +
@@ -300,7 +308,7 @@ ggplot(h2_prices %>% filter(region %in% c("Indonesia", "USA", "South Africa")) %
   geom_text(data = h2_prices_stats,
             aes(x = max(h2_prices$year), y = min(h2_prices$cost), label = paste0("Global Min: $", round(min(h2_prices$cost), 2), "/kg")),
             hjust = 1, vjust = 1.5, color = "green4", size = 3) +
-  labs(x = "", y = "H2 Price ($/kg)", color = "Scenario") +
+  labs(x = "", y = "Hydrogen Price (2020$/kgH2)", color = "Scenario") +
   ylim(0, 6.95) +
   facet_wrap(~region, ncol = 8) +
   mytheme +
@@ -310,8 +318,8 @@ ggplot(h2_prices %>% filter(region %in% c("Indonesia", "USA", "South Africa")) %
 # USA prices
 fig2 <- ggplot(h2_prices %>% filter(region == "USA")) +
   geom_line(aes(x = year, y = cost, color = scenario, linetype = NH3ship)) +
-  scale_color_manual(values = scenario_colors) +
-  labs(x = "", y = "H2 Price ($/kg)", color = "Scenario") +
+  scale_color_manual(values = scenario_colors_J1) +
+  labs(x = "", y = "Hydrogen Price (2020$/kgH2)", color = "Scenario") +
   ylim(0, NA) +
   mytheme +
   theme(axis.title.y = element_text(face = "bold"), legend.position = c(0.15, 0.15))
@@ -425,7 +433,7 @@ h2prod_plot <- hydrogen_prod_tech_2050 %>%
 fig3 <- ggplot(h2prod_plot, aes(x = scenario, y = value, fill = subsector)) +
   geom_bar(stat = "identity") +
   geom_text(aes(y = pos, label = label, color = "white"), size = 3, show.legend = T) +
-  scale_color_manual(values = hydrogen_colors) +
+  scale_color_manual(values = "gray60") +
   scale_fill_manual(values = hydrogen_colors) +
   labs(x = "", y = "Hydrogen Production (Mt H2)", fill = "H2 Sources", color = "text") +
   guides(fill = guide_legend(override.aes = list(label = "%", size = 2)), color = "none") +
@@ -436,7 +444,7 @@ fig3 <- ggplot(h2prod_plot, aes(x = scenario, y = value, fill = subsector)) +
 
 fig3
 
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_hydrogen_prod_2050.png"), height = 5, width = 7, units = "in")}
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig3_hydrogen_prod_2050.png"), height = 5, width = 7, units = "in")}
 
 hydrogen_plot_fill <- hydrogen_prod_tech_2050 %>%
   group_by(scenario) %>%
@@ -447,7 +455,7 @@ ggplot(hydrogen_plot_fill, aes(x = scenario, y = value, fill = subsector)) +
   geom_bar(stat = "identity", position = "fill") +                # normalize to 100%
   geom_text(aes(label = ifelse(share > 1, paste0(round(share, 0), "%"), "")),
             position = position_fill(vjust = 0.5),                # <-- centers text automatically
-            size = 3, color = "gray50", fontface = "bold") +
+            size = 3, color = "gray60", fontface = "bold") +
   scale_y_continuous(labels = scales::percent) +
   scale_fill_manual(values = hydrogen_colors) +
   labs(x = NULL, y = "Share of H2 (%)", fill = "Hydrogen Sources") +
@@ -460,13 +468,12 @@ ggplot(hydrogen_plot_fill, aes(x = scenario, y = value, fill = subsector)) +
 ###############################################################################%
 
 # True fig 1 combined panels ----
-# fig 1 two thirds, fig 2 one third
 fig1_combo <- (fig1 |
                 ((fig3 + theme(legend.position = c(0.1, 0.85),
                               legend.key.size = unit(0.5, "cm"),
                               # axis.text.x = element_text(angle = 0)
                               )) /
-                (fig2 + theme(legend.position = c(0.21, 0.25),
+                (fig2 + theme(legend.position = c(0.16, 0.19),
                               legend.spacing = unit(0.001, "cm"), # reduce vertical gap between legend breaks
                               legend.key.height = unit(0.4, "cm"), # reduce vertical spacing in legend keys
                               legend.text = element_text(size = 8)))
@@ -487,32 +494,9 @@ if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig1_combo.pdf"), height = 10, width = 
 
 ###############################################################################%
 
+# Fig 4 NH3 ----
 
-# NH3 production by tech ----
-## Jill Addition 5/27/2025
-ammonia_prod_tech <- getQuery(food_ammonia_proj, "ammonia production by tech") %>%
-  # filter(year %in% ANALYSIS_YEARS) %>%
-  mutate(technology = if_else(technology == "hydrogen", "electrolysis", technology),
-         scenario = factor(scenario, levels = scenario_levels)) %>%
-  group_by(scenario, technology, year) %>%
-  summarise(value = sum(value)) %>%
-  ungroup()
-
-ammonia_prod_tech_filtered <- ammonia_prod_tech %>%
-  filter(year %in% c(2020, 2035, 2050)) %>%
-  mutate(year = factor(year, levels = c(2020, 2035, 2050)))
-
-ggplot(ammonia_prod_tech_filtered, aes(x = year, y = value, fill = technology)) +
-  geom_bar(stat = "identity", position = "stack") +
-  facet_wrap(~scenario) +
-  labs(x = "", y = "Mt NH3", fill = "NH3 Technology") +
-  mytheme +
-  # theme_bw() +
-  scale_fill_manual(values = ammonia_tech_colors)
-
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "ammonia_prod_tech_filtered.png"), height = 6, width = 8, units = "in")}
-
-
+## NH3 production by tech ----
 ammonia_prod_tech <- getQuery(food_ammonia_proj, "ammonia production by tech") %>%
   filter(year %in% ANALYSIS_YEARS) %>%
   mutate(technology = if_else(technology == "hydrogen", "electrolysis", technology),
@@ -521,110 +505,233 @@ ammonia_prod_tech <- getQuery(food_ammonia_proj, "ammonia production by tech") %
   summarise(value = sum(value)) %>%
   ungroup()
 
+# stacked bars
 ggplot(ammonia_prod_tech, aes(x = year, y = value, fill = technology)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_wrap(~scenario) +
+  scale_fill_manual(values = ammonia_tech_colors) +
+  labs(x = "", y = "Ammonia Production (Mt NH3)", fill = "NH3 Technology") +
+  mytheme # + theme(legend.position = c(0.1, 0.85))
+
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig4_ammonia_prod_tech_vals.png"), height = 6, width = 8, units = "in")}
+
+# fill to 100%
+fig4a <- ggplot(ammonia_prod_tech, aes(x = year, y = value, fill = technology)) +
   geom_bar(stat = "identity", position = "fill") +
   facet_wrap(~scenario) +
-  ylab("Mt NH3") +
-  xlab("") +
-  labs(fill = "") +
-  # theme_bw() +
+  labs(x = "", y = "Ammonia Production (Fraction)", fill = "NH3 Technology") +
+  scale_fill_manual(values = ammonia_tech_colors) +
   mytheme +
-  theme(legend.position = "bottom",
-        legend.text = element_text(size = 10),
-        legend.title = element_text(size = 10, face = "bold")) +
-  scale_fill_manual(values = ammonia_tech_colors)
+  theme(legend.position = "bottom")
 
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "ammonia_prod_tech.png"), height = 6, width = 8, units = "in")}
+fig4a
+
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig4_ammonia_prod_tech_fracs.png"), height = 6, width = 8, units = "in")}
+
+# add percentages on the bar plot
+ammonia_prod_tech_plot <- ammonia_prod_tech %>%
+  group_by(scenario, year) %>%
+  # arrange by the actual stacking order (bottom to top)
+  arrange(match(technology, c("refined liquids", "gas CCS", "gas",
+                             "electrolysis", "coal CCS", "coal"))) %>%
+  mutate(pct = round(100 * value / sum(value), 1),
+         pos = cumsum(value) - 0.5 * value,
+         # label = paste0(round(value, 1), " Mt\n", round(pct, 0), "%")
+         label = paste0(round(pct, 0), "%"))
+
+ggplot(ammonia_prod_tech_plot) +
+  geom_bar(aes(x = year, y = value, fill = technology), stat = "identity") +
+  facet_wrap(~scenario) +
+  geom_text(aes(x = year, y = pos, label = ifelse(pct >= 15, label, ""),
+                color = "gray65"), size = 3, show.legend = F) +
+  scale_color_manual(values = "gray65") +
+  scale_fill_manual(values = ammonia_tech_colors) +
+  labs(x = "", y = "Ammonia Production (Mt NH3)", fill = "NH3 Technology", color = "text") +
+  guides(fill = guide_legend(override.aes = list(label = "%", size = 2)), color = "none") +
+  mytheme +
+  theme(axis.title.y = element_text(face = "bold"),
+        legend.position = c(0.085, 0.88),
+        legend.box.background = element_rect(colour = "gray60", size = 0.1),
+        legend.spacing = unit(0.001, "cm"),
+        legend.key.height = unit(0.4, "cm"))
 
 
 ###############################################################################%
-#################Figure 4#################
-## N fert prices ----
-##Jill Addition 5/19/2025
-scenario_colors_J1 <- c("elec_NH3_hicost" = "red",
-                     "elec_NH3_locost" = "green4",
-                     "NGCCS_NH3" = "blue")
+
+## NH3 fert prices ----
 Nfert_prices <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
   filter(year %in% ANALYSIS_YEARS,
          sector == "N fertilizer",
          region %in% ANALYSIS_REGIONS) %>%
   mutate(cost = value * CONV_USD_1975_2020 * CONV_KG_T * CONV_NH3_N,
          NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))
-#graph
-ggplot(Nfert_prices, aes(x = year, y = cost, color = scenario, linetype = NH3ship)) +
-  geom_line() +
-  facet_grid(~region) +
-  ylim(0, NA) +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90)) +
+
+# analysis regions
+ggplot(Nfert_prices %>% filter(region %in% ANALYSIS_REGIONS)) +
+  geom_line(aes(x = year, y = cost, color = scenario, linetype = NH3ship)) +
+  facet_wrap(~region, nrow = 1) +
+  mytheme +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 90)) +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
-  labs(x = "", y = "N Fertilizer Price ($/t NH3)", color = "NH3 Technology")
+  scale_y_continuous(limits = c(500, NA), breaks = seq(100, 1600, by = 100)) +
+  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario")
 
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "Nfert_prices.png"), height = 5, width = 8, units = "in")}
-# ggsave("figures/Jill/Nfert_prices.png", height = 5, width = 8, units = "in")
-# ggsave("figures/Draft2/Nfert_prices.png", height = 5, width = 8, units = "in")
+# all regions with percentile shading
+ggplot(Nfert_prices) +
+  # draw an area between 25% and 75% percentile
+  geom_ribbon(aes(x = year, y = cost,
+                  xmin = min(year), xmax = max(year),
+                  ymin = quantile(cost, 0.25), ymax = quantile(cost, 0.75)),
+              fill = "gray92", alpha = 0.5) +
+  geom_line(aes(x = year, y = cost, color = scenario, linetype = NH3ship)) +
+  facet_wrap(~region, nrow = 1) +
+  # add a sample min max mean horizontal lines for reference
+  geom_hline(yintercept = max(Nfert_prices$cost), linetype = "dotted", color = "orange", alpha = 0.5) +
+  geom_hline(yintercept = mean(Nfert_prices$cost), linetype = "dotted", color = "gray50", alpha = 1) +
+  geom_hline(yintercept = min(Nfert_prices$cost), linetype = "dotted", color = "purple", alpha = 0.5) +
+  scale_color_manual(values = scenario_colors_J1) +
+  scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
+  scale_y_continuous(limits = c(500, NA), breaks = seq(100, 1600, by = 100)) +
+  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario") +
+  mytheme +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 90),
+        strip.text = element_text(angle = 90, hjust = 0))
+
+# analysis regions with percentile shading
+fig4b <- ggplot(Nfert_prices %>% filter(region %in% ANALYSIS_REGIONS)) +
+  # draw an area between 25% and 75% percentile
+  geom_ribbon(aes(x = year, y = cost,
+                  xmin = min(year), xmax = max(year),
+                  ymin = quantile(cost, 0.25), ymax = quantile(cost, 0.75)),
+              fill = "gray92", alpha = 0.5) +
+  geom_line(aes(x = year, y = cost, color = scenario, linetype = NH3ship)) +
+  facet_wrap(~region, nrow = 1) +
+  # add a sample min max mean horizontal lines for reference
+  geom_hline(yintercept = max(Nfert_prices$cost), linetype = "dotted", color = "orange", alpha = 0.5) +
+  geom_hline(yintercept = mean(Nfert_prices$cost), linetype = "dotted", color = "gray50", alpha = 0.5) +
+  geom_hline(yintercept = min(Nfert_prices$cost), linetype = "dotted", color = "purple", alpha = 0.5) +
+  scale_color_manual(values = scenario_colors_J1) +
+  scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
+  scale_y_continuous(limits = c(500, NA), breaks = seq(100, 1600, by = 100)) +
+  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario") +
+  mytheme +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 90))
+
+fig4b
+
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig4_Nfert_prices.png"), height = 5, width = 8, units = "in")}
+
+### all regions ----
+ggplot(Nfert_prices) +
+  geom_line(aes(x = year, y = cost, color = scenario, linetype = NH3ship), linewidth = 0.5) +
+  # add a sample min max mean horizontal lines for reference
+  geom_hline(yintercept = max(Nfert_prices$cost), linetype = "dotted", color = "orange", alpha = 0.5) +
+  geom_hline(yintercept = mean(Nfert_prices$cost), linetype = "dotted", color = "gray50", alpha = 0.5) +
+  geom_hline(yintercept = min(Nfert_prices$cost), linetype = "dotted", color = "purple", alpha = 0.5) +
+  geom_text(data = h2_prices_stats,
+            aes(x = max(Nfert_prices$year), y = max(Nfert_prices$cost), label = paste0("Global Max: $", round(max(Nfert_prices$cost), 0), "/t")),
+            hjust = 1, vjust = -0.5, color = "red3", size = 2, alpha = 0.75) +
+  geom_text(data = h2_prices_stats,
+            aes(x = max(Nfert_prices$year), y = mean(Nfert_prices$cost), label = paste0("Global Mean: $", round(mean(Nfert_prices$cost), 0), "/t")),
+            hjust = 1, vjust = -0.5, color = "gray50", size = 2, alpha = 0.75) +
+  geom_text(data = h2_prices_stats,
+            aes(x = max(Nfert_prices$year), y = min(Nfert_prices$cost), label = paste0("Global Min: $", round(min(Nfert_prices$cost), 0), "/t")),
+            hjust = 1, vjust = 1.5, color = "green4", size = 2, alpha = 0.75) +
+  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario") +
+  facet_wrap(~region, ncol = 8) +
+  scale_y_continuous(limits = c(500, 1300), breaks = seq(100, 1600, by = 100)) +
+  mytheme +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 90)) +
+  scale_color_manual(values = scenario_colors_J1)
+
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig4_Nfert_prices_allregions.png"), height = 9, width = 16, units = "in")}
 
 
-Nfert_prices <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
-  filter(year %in% ANALYSIS_YEARS,
-         sector == "N fertilizer",
-         region %in% ANALYSIS_REGIONS) %>%
-  mutate(cost = value * CONV_USD_1975_2020 * CONV_KG_T * CONV_NH3_N,
-         NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))
+# India has the lowest prices, Indonesia has the highest price so plotting those
+ggplot(Nfert_prices %>% filter(region %in% c("India", "USA", "South Africa", "Indonesia")) %>%
+         mutate(region = factor(region, levels = c("Indonesia", "USA", "South Africa", "India")))) +
+  geom_line(aes(x = year, y = cost, color = scenario, linetype = NH3ship), linewidth = 0.5) +
+  # add a sample min max mean horizontal lines for reference
+  geom_hline(yintercept = mean(Nfert_prices$cost), linetype = "dotted", color = "gray50", alpha = 0.5) +
+  geom_hline(yintercept = max(Nfert_prices$cost), linetype = "dotted", color = "red3", alpha = 0.5) +
+  geom_hline(yintercept = min(Nfert_prices$cost), linetype = "dotted", color = "green3", alpha = 0.5) +
+  geom_text(data = h2_prices_stats,
+            aes(x = max(Nfert_prices$year), y = max(Nfert_prices$cost), label = paste0("Global Max: $", round(max(Nfert_prices$cost), 0), "/t")),
+            hjust = 1, vjust = -0.5, color = "red3", size = 2, alpha = 0.75) +
+  geom_text(data = h2_prices_stats,
+            aes(x = max(Nfert_prices$year), y = mean(Nfert_prices$cost), label = paste0("Global Mean: $", round(mean(Nfert_prices$cost), 0), "/t")),
+            hjust = 1, vjust = -0.5, color = "gray50", size = 2, alpha = 0.75) +
+  geom_text(data = h2_prices_stats,
+            aes(x = max(Nfert_prices$year), y = min(Nfert_prices$cost), label = paste0("Global Min: $", round(min(Nfert_prices$cost), 0), "/t")),
+            hjust = 1, vjust = 1.5, color = "green4", size = 2, alpha = 0.75) +
+  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario") +
+  facet_wrap(~region, ncol = 8) +
+  scale_y_continuous(limits = c(500, 1300), breaks = seq(100, 1600, by = 100)) +
+  mytheme +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 90)) +
+  scale_color_manual(values = scenario_colors_J1)
 
-ggplot(Nfert_prices, aes(x = year, y = cost, color = scenario, linetype = NH3ship)) +
-  geom_line() +
-  facet_grid(~region) +
-  ylab("$/t NH3") +
-  ylim(0, NA) +
-  xlab("") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90)) +
-  scale_color_manual(values = scenario_colors) +
-  labs(fill = "")
 
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "Nfert_prices.png"), height = 5, width = 8, units = "in")}
-# ggsave("figures/Nfert_prices.png", height = 5, width = 8, units = "in")
+## True fig 2 composite ----
+fig2_combo <- (
+                 ((fig4a + theme(legend.position = "bottom",
+                                 legend.key.size = unit(0.4, "cm"),
+                                # axis.text.x = element_text(angle = 0)
+                 )) |
+                   (fig4b + theme(legend.position = "bottom",
+                                  legend.spacing = unit(0.001, "cm"), # reduce vertical gap between legend breaks
+                                  legend.key.height = unit(0.4, "cm")))
+                 ) # + plot_layout(heights = c(0.995, 1.05))
+) +
+  plot_annotation(tag_levels = 'a') +
+  plot_layout(widths = c(1, 1)) &
+  theme(plot.tag = element_text(face = "bold", size = 14)) &
+  theme(axis.text.x = element_text(angle = 90),
+        legend.text = element_text(size = 8),
+        axis.title.y = element_text(face = "bold"))
 
+fig2_combo
 
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_combo.png"), height = 7, width = 14, units = "in")}
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_combo.pdf"), height = 7, width = 14, units = "in")}
 
-# Global map of 2050 showing price increase of ammonia fertilizer relative to 2020 due to technology switching and due to ammonia shipping fuel demand
+### maps ----
+# global map of 2050 showing price increase of ammonia fertilizer relative to 2020 due to technology switching and due to ammonia shipping fuel demand
 Nfert_prices_map_2020 <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
   filter(sector == "N fertilizer") %>%
-  mutate(value = value * CONV_USD_1975_2020 * CONV_KG_T,
+  mutate(value = value * CONV_USD_1975_2020 * CONV_KG_T * CONV_NH3_N,
          NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))  %>%
   filter(year == "2020") %>%
   filter(scenario == "NGCCS_NH3") %>%
   mutate(subRegion = region) %>%
   select(subRegion, value)
 
-p_Nfert_prices_map_2020 <- rmap::map(Nfert_prices_map_2020)
-
+p_Nfert_prices_map_2020 <- rmap::map(Nfert_prices_map_2020, save = F)
 
 
 Nfert_prices_map_2050 <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
   filter(sector == "N fertilizer") %>%
-  mutate(value = value * CONV_USD_1975_2020 * CONV_KG_T,
+  mutate(value = value * CONV_USD_1975_2020 * CONV_KG_T * CONV_NH3_N,
          NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))  %>%
   filter(year == "2050") %>%
   filter(scenario == "NGCCS_NH3") %>%
   mutate(subRegion = region) %>%
   select(subRegion, value)
 
-p_Nfert_prices_map_2050 <- rmap::map(Nfert_prices_map_2050)
+p_Nfert_prices_map_2050 <- rmap::map(Nfert_prices_map_2050, save = F)
 
 
 Nfert_prices_map_2050_ship <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
   filter(sector == "N fertilizer") %>%
-  mutate(value = value * CONV_USD_1975_2020 * CONV_KG_T,
+  mutate(value = value * CONV_USD_1975_2020 * CONV_KG_T * CONV_NH3_N,
          NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))  %>%
   filter(year == "2050") %>%
   filter(scenario == "NGCCS_NH3_NH3ship") %>%
   mutate(subRegion = region) %>%
   select(subRegion, value)
 
-p_Nfert_prices_map_2050_ship <- rmap::map(Nfert_prices_map_2050_ship)
+p_Nfert_prices_map_2050_ship <- rmap::map(Nfert_prices_map_2050_ship, save = F)
 
 
 N_price_impact <- reduce(
@@ -645,6 +752,7 @@ N_price_impact = N_price_impact %>%
 mapx <- rmap::map(data = N_price_impact,
                   underLayer = rmap::mapCountries,
                   background = T,
+                  save = F
                   #legendFixedBreaks = c(0, 1, 2, 15, 25),
                   #legendType = "pretty",
                   #palette = "BrBG"
@@ -652,8 +760,8 @@ mapx <- rmap::map(data = N_price_impact,
 )
 
 
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "rel_fert_price_change.png"), height = 8, width = 8, units = "in")}
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "rel_fert_price_change.pdf"), height = 8, width = 8, units = "in")}
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "rel_fert_price_change.png"), height = 8, width = 8, units = "in")}
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "rel_fert_price_change.pdf"), height = 8, width = 8, units = "in")}
 
 
 ###############################################################################%

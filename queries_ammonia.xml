@@ -1,9 +1,9 @@
 <queries>
     <aQuery>
 		<region name="USA"/>
-		<region name="Canada"/>		
-		<region name="Africa_Eastern"/>		
-		<region name="Africa_Northern"/>		
+		<region name="Canada"/>
+		<region name="Africa_Eastern"/>
+		<region name="Africa_Northern"/>
 		<region name="Africa_Southern"/>
 		<region name="Africa_Western"/>
 		<region name="Japan"/>
@@ -13,7 +13,7 @@
 		<region name="Brazil"/>
 		<region name="Central America and Caribbean"/>
 		<region name="Central Asia"/>
-		<region name="EU-12"/>	
+		<region name="EU-12"/>
 		<region name="EU-15"/>
 		<region name="Europe_Eastern"/>
 		<region name="Europe_Non_EU"/>
@@ -43,9 +43,9 @@
     </aQuery>
         <aQuery>
 		<region name="USA"/>
-		<region name="Canada"/>		
-		<region name="Africa_Eastern"/>		
-		<region name="Africa_Northern"/>		
+		<region name="Canada"/>
+		<region name="Africa_Eastern"/>
+		<region name="Africa_Northern"/>
 		<region name="Africa_Southern"/>
 		<region name="Africa_Western"/>
 		<region name="Japan"/>
@@ -55,7 +55,7 @@
 		<region name="Brazil"/>
 		<region name="Central America and Caribbean"/>
 		<region name="Central Asia"/>
-		<region name="EU-12"/>	
+		<region name="EU-12"/>
 		<region name="EU-15"/>
 		<region name="Europe_Eastern"/>
 		<region name="Europe_Non_EU"/>
@@ -85,9 +85,9 @@
     </aQuery>
       	<aQuery>
 		<region name="USA"/>
-		<region name="Canada"/>		
-		<region name="Africa_Eastern"/>		
-		<region name="Africa_Northern"/>		
+		<region name="Canada"/>
+		<region name="Africa_Eastern"/>
+		<region name="Africa_Northern"/>
 		<region name="Africa_Southern"/>
 		<region name="Africa_Western"/>
 		<region name="Japan"/>
@@ -97,7 +97,7 @@
 		<region name="Brazil"/>
 		<region name="Central America and Caribbean"/>
 		<region name="Central Asia"/>
-		<region name="EU-12"/>	
+		<region name="EU-12"/>
 		<region name="EU-15"/>
 		<region name="Europe_Eastern"/>
 		<region name="Europe_Non_EU"/>
@@ -125,9 +125,9 @@
       </aQuery>
       <aQuery>
 		<region name="USA"/>
-		<region name="Canada"/>		
-		<region name="Africa_Eastern"/>		
-		<region name="Africa_Northern"/>		
+		<region name="Canada"/>
+		<region name="Africa_Eastern"/>
+		<region name="Africa_Northern"/>
 		<region name="Africa_Southern"/>
 		<region name="Africa_Western"/>
 		<region name="Japan"/>
@@ -137,7 +137,7 @@
 		<region name="Brazil"/>
 		<region name="Central America and Caribbean"/>
 		<region name="Central Asia"/>
-		<region name="EU-12"/>	
+		<region name="EU-12"/>
 		<region name="EU-15"/>
 		<region name="Europe_Eastern"/>
 		<region name="Europe_Non_EU"/>
@@ -165,9 +165,9 @@
       </aQuery>
       <aQuery>
 		<region name="USA"/>
-		<region name="Canada"/>		
-		<region name="Africa_Eastern"/>		
-		<region name="Africa_Northern"/>		
+		<region name="Canada"/>
+		<region name="Africa_Eastern"/>
+		<region name="Africa_Northern"/>
 		<region name="Africa_Southern"/>
 		<region name="Africa_Western"/>
 		<region name="Japan"/>
@@ -177,7 +177,7 @@
 		<region name="Brazil"/>
 		<region name="Central America and Caribbean"/>
 		<region name="Central Asia"/>
-		<region name="EU-12"/>	
+		<region name="EU-12"/>
 		<region name="EU-15"/>
 		<region name="Europe_Eastern"/>
 		<region name="Europe_Non_EU"/>
@@ -205,9 +205,9 @@
       </aQuery>
       <aQuery>
 				<region name="USA"/>
-		<region name="Canada"/>		
-		<region name="Africa_Eastern"/>		
-		<region name="Africa_Northern"/>		
+		<region name="Canada"/>
+		<region name="Africa_Eastern"/>
+		<region name="Africa_Northern"/>
 		<region name="Africa_Southern"/>
 		<region name="Africa_Western"/>
 		<region name="Japan"/>
@@ -217,7 +217,7 @@
 		<region name="Brazil"/>
 		<region name="Central America and Caribbean"/>
 		<region name="Central Asia"/>
-		<region name="EU-12"/>	
+		<region name="EU-12"/>
 		<region name="EU-15"/>
 		<region name="Europe_Eastern"/>
 		<region name="Europe_Non_EU"/>
@@ -245,9 +245,9 @@
       </aQuery>
       	<aQuery>
 				<region name="USA"/>
-		<region name="Canada"/>		
-		<region name="Africa_Eastern"/>		
-		<region name="Africa_Northern"/>		
+		<region name="Canada"/>
+		<region name="Africa_Eastern"/>
+		<region name="Africa_Northern"/>
 		<region name="Africa_Southern"/>
 		<region name="Africa_Western"/>
 		<region name="Japan"/>
@@ -257,7 +257,7 @@
 		<region name="Brazil"/>
 		<region name="Central America and Caribbean"/>
 		<region name="Central Asia"/>
-		<region name="EU-12"/>	
+		<region name="EU-12"/>
 		<region name="EU-15"/>
 		<region name="Europe_Eastern"/>
 		<region name="Europe_Non_EU"/>
@@ -285,9 +285,9 @@
           </aQuery>
       <aQuery>
 						<region name="USA"/>
-		<region name="Canada"/>		
-		<region name="Africa_Eastern"/>		
-		<region name="Africa_Northern"/>		
+		<region name="Canada"/>
+		<region name="Africa_Eastern"/>
+		<region name="Africa_Northern"/>
 		<region name="Africa_Southern"/>
 		<region name="Africa_Western"/>
 		<region name="Japan"/>
@@ -297,7 +297,7 @@
 		<region name="Brazil"/>
 		<region name="Central America and Caribbean"/>
 		<region name="Central Asia"/>
-		<region name="EU-12"/>	
+		<region name="EU-12"/>
 		<region name="EU-15"/>
 		<region name="Europe_Eastern"/>
 		<region name="Europe_Non_EU"/>
@@ -325,9 +325,9 @@
       </aQuery>
       <aQuery>
 						<region name="USA"/>
-		<region name="Canada"/>		
-		<region name="Africa_Eastern"/>		
-		<region name="Africa_Northern"/>		
+		<region name="Canada"/>
+		<region name="Africa_Eastern"/>
+		<region name="Africa_Northern"/>
 		<region name="Africa_Southern"/>
 		<region name="Africa_Western"/>
 		<region name="Japan"/>
@@ -337,7 +337,7 @@
 		<region name="Brazil"/>
 		<region name="Central America and Caribbean"/>
 		<region name="Central Asia"/>
-		<region name="EU-12"/>	
+		<region name="EU-12"/>
 		<region name="EU-15"/>
 		<region name="Europe_Eastern"/>
 		<region name="Europe_Non_EU"/>

@@ -849,7 +849,7 @@ ggplot(ag_price_diffs_2050) +
     facet_grid(sector~region)
 
 # heatmap of percentage differences in 2050 prices due to NH3shipping
-ggplot(ag_price_diffs_2050,
+heat_food_price_indices <- ggplot(ag_price_diffs_2050,
        aes(x = sector, y = region, fill = pct_diff)) +
   geom_tile(color = "white", size = 0.1) +
   facet_wrap(~base_scenario) +
@@ -876,7 +876,7 @@ ggplot(ag_price_diffs_2050,
         plot.subtitle = element_text(hjust = 0.5),
         strip.text = element_text(size = 10))
 
-
+heat_food_price_indices
 
 # highlight top 50 changes
 top_changes <- ag_price_diffs %>%
@@ -901,14 +901,16 @@ ggplot(top_changes, aes(x = region, y = sector, fill = pct_diff)) +
 #### Wheat ----
 wheat_price_index <- ag_prices_index %>% filter(sector == "Wheat", region %in% ANALYSIS_REGIONS)
 
-ggplot(wheat_price_index, aes(x = year, y = index, color = scenario, linetype = NH3ship)) +
+fig_wheat_price_index <- ggplot(wheat_price_index, aes(x = year, y = index, color = scenario, linetype = NH3ship)) +
   geom_line() +
   facet_grid(~region) +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
-  labs(x = "Year", y = "Wheat Price Index (rel. 2020)", color = "Scenario") +
+  labs(x = "", y = "Wheat Price Index (rel. 2020)", color = "Scenario") +
   mytheme +
   theme(axis.text.x = element_text(angle = 90))
+
+fig_wheat_price_index
 
 # if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "price_index_wheat.png"), height = 6, width = 8, units = "in")}
 
@@ -921,7 +923,7 @@ ggplot(rice_price_index, aes(x = year, y = index, color = scenario, linetype = N
   geom_line() +
   facet_grid(~region) +
   scale_color_manual(values = scenario_colors_J1) +
-  labs(x = "Year", y = "Rice Price Index (rel. 2020)", color = "Scenario") +
+  labs(x = "", y = "Rice Price Index (rel. 2020)", color = "Scenario") +
   mytheme +
   theme(axis.text.x = element_text(angle = 90))
 
@@ -935,7 +937,7 @@ ggplot(corn_price_index, aes(x = year, y = index, color = scenario, linetype = N
   geom_line() +
   facet_grid(~region) +
   scale_color_manual(values = scenario_colors_J1) +
-  labs(x = "Year", y = "Corn Price Index (rel. 2020)", color = "Scenario") +
+  labs(x = "", y = "Corn Price Index (rel. 2020)", color = "Scenario") +
   mytheme +
   theme(axis.text.x = element_text(angle = 90))
 
@@ -945,14 +947,16 @@ ggplot(corn_price_index, aes(x = year, y = index, color = scenario, linetype = N
 #### Soybean ----
 soybean_price_index <- ag_prices_index %>% filter(sector == "Soybean", region %in% ANALYSIS_REGIONS)
 
-ggplot(soybean_price_index, aes(x = year, y = index, color = scenario, linetype = NH3ship)) +
+fig_soybean_price_index <- ggplot(soybean_price_index, aes(x = year, y = index, color = scenario, linetype = NH3ship)) +
   geom_line() +
   facet_grid(~region) +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
-  labs(x = "Year", y = "Soybean Price Index (rel. 2020)", color = "Scenario") +
+  labs(x = "", y = "Soybean Price Index (rel. 2020)", color = "Scenario") +
   mytheme +
   theme(axis.text.x = element_text(angle = 90))
+
+fig_soybean_price_index
 
 # if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "price_index_soybean.png"), height = 6, width = 8, units = "in")}
 
@@ -965,7 +969,7 @@ ggplot(legumes_price_index, aes(x = year, y = index, color = scenario, linetype 
   facet_grid(~region) +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
-  labs(x = "Year", y = "Legumes Price Index (rel. 2020)", color = "Scenario") +
+  labs(x = "", y = "Legumes Price Index (rel. 2020)", color = "Scenario") +
   mytheme +
   theme(axis.text.x = element_text(angle = 90))
 
@@ -983,7 +987,7 @@ ggplot(ag_prices) +
   geom_line(aes(x = year, y = cost, color = scenario, linetype = NH3ship)) +
   facet_grid(sector ~ region, # scales = "free_y"
   ) +
-  labs(x = "Year", y = "Price (2020$/t)", color = "Scenario") +
+  labs(x = "", y = "Price (2020$/t)", color = "Scenario") +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
   mytheme +
@@ -996,7 +1000,7 @@ ggplot(ag_prices %>% filter(!grepl("NH3ship", scenario))) +
   geom_line(aes(x = year, y = cost, color = sector, linetype = NH3ship)) +
   facet_grid(scenario ~ region, # scales = "free_y"
   ) +
-  labs(x = "Year", y = "Price (2020$/t)", color = "Scenario") +
+  labs(x = "", y = "Price (2020$/t)", color = "Scenario") +
   scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
   mytheme +
   theme(axis.text.x = element_text(angle = 90))
@@ -1046,6 +1050,7 @@ ggplot(food_demand, aes(x = year, y = index, fill = scenario)) +
         legend.text = element_text(size = 8),
         axis.title.y = element_text(face = "bold"))
 
+## per capita daily food demand ----
 food_demand_pcd <- food_demand %>%
   filter(year %in% ANALYSIS_YEARS_FUTURE) %>%
   left_join(getQuery(food_ammonia_proj, "population by region"),
@@ -1073,7 +1078,8 @@ ggplot(food_demand_pcd, aes(x = scenario, y = index, fill = type)) +
         legend.position = "right")
 )
 
-ggplot(food_demand_pcd %>% filter(region %in% ANALYSIS_REGIONS), aes(x = scenario, y = value, fill = type)) +
+ggplot(food_demand_pcd %>% filter(region %in% ANALYSIS_REGIONS),
+       aes(x = scenario, y = value, fill = type)) +
   geom_bar(stat = "identity", position = "stack") +
   facet_grid(~ year) +
   scale_fill_manual(values = c("Staples" = "forestgreen", NonStaples = "goldenrod1")) +
@@ -1082,7 +1088,7 @@ ggplot(food_demand_pcd %>% filter(region %in% ANALYSIS_REGIONS), aes(x = scenari
   theme(axis.text.x = element_text(angle = 90, hjust = 0),
         legend.position = "right")
 
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "food_demand.png"), height = 6, width = 8, units = "in")}
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "food_demand.png"), height = 6, width = 8, units = "in")}
 
 food_demand_total <- food_demand %>%
   group_by(scenario, region, year) %>%
@@ -1091,6 +1097,88 @@ food_demand_total <- food_demand %>%
   ungroup()
 
 
+## food demand change ----
+# heat map of change in prices from 2020 to 2050 between staples and nonstaples
+
+# calculate change in food demand from 2020 to 2050
+food_demand_changes <- food_demand %>%
+  filter(year %in% c(2020, 2050)) %>%
+  select(scenario, region, type, year, value) %>%
+  pivot_wider(names_from = year, values_from = value, names_prefix = "year_") %>%
+  mutate(
+    diff = year_2050 - year_2020,
+    pct_diff = round(100 * (year_2050 - year_2020) / year_2020, 1)
+  )
+
+# heatmap
+heat_fooddemandchange <- ggplot(food_demand_changes, aes(x = region, y = scenario, fill = diff)) +
+  geom_tile(color = "white", size = 0.1) +
+  facet_wrap(~type) +
+  scale_fill_gradientn(colors = c("blue", "white", "red"),
+                       values = scales::rescale(c(min(food_demand_changes$diff),
+                                                  0,
+                                                  max(food_demand_changes$diff))),
+                       name = "Change (%)") +
+  labs(x = "", y = "",
+       subtitle = paste0("Food Demand Change from 2020 to 2050. ",
+                         "Range: ", round(min(food_demand_changes$diff), 1), " to ",
+                         round(max(food_demand_changes$diff), 1), " (kcal/pers/d)")) +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.text.y = element_text(hjust = 0),
+        plot.subtitle = element_text(hjust = 0.5),
+        strip.text = element_text(size = 10)
+  )
+
+heat_fooddemandchange
+
+heat_fooddemandchange_pct <- ggplot(food_demand_changes, aes(x = region, y = scenario, fill = pct_diff)) +
+  geom_tile(color = "white", size = 0.1) +
+  facet_wrap(~type) +
+  scale_fill_gradientn(colors = c("blue", "white", "red"),
+                       values = scales::rescale(c(min(food_demand_changes$pct_diff),
+                                                  0,
+                                                  max(food_demand_changes$pct_diff))),
+                       name = "Change (%)") +
+  labs(x = "", y = "",
+    subtitle = paste0("Food Demand (kcal/pers/d) Change from 2020 to 2050. ",
+                      "Range: ", round(min(food_demand_changes$pct_diff), 1), "% to ",
+                      round(max(food_demand_changes$pct_diff), 1), "%")) +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.text.y = element_text(hjust = 0),
+        plot.subtitle = element_text(hjust = 0.5),
+        strip.text = element_text(size = 10)
+  )
+
+heat_fooddemandchange_pct
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig3_food_demand_change_heatmap.png"), height = 6, width = 10, units = "in")}
+
+
+# True fig 3 food demand -----
+(
+  (heat_fooddemandchange + theme(axis.text.x = element_text(angle = 45)) ) /
+  (heat_fooddemandchange_pct + theme(axis.text.x = element_text(angle = 45)) ) /
+  (
+    (fig_wheat_price_index + scale_x_continuous(breaks = seq(2020, 2050, by = 10))
+     | fig_soybean_price_index) +
+     scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
+     plot_layout(guides = "collect") + theme(legend.position = "right")
+    )
+  / (heat_food_price_indices)
+) +
+  plot_annotation(tag_levels = 'a') +
+  # plot_layout(guides = "collect") &
+  theme(plot.tag = element_text(face = "bold", size = 14),
+        legend.position = "right",
+        # axis.text.x = element_text(angle = 90),
+        legend.text = element_text(size = 8),
+        axis.title.y = element_text(face = "bold"))
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig3_combo.png"), height = 21, width = 15, units = "in")}
+
+fig3_combo
 
 ###############################################################################%
 

@@ -365,4 +365,14 @@
     <comments/>
 </supplyDemandQuery>
       </aQuery>
-    </queries>
+      <aQuery>
+        <supplyDemandQuery title="hydrogen utilization by technology">
+            <axis1 name="input">input</axis1>
+            <axis2 name="Year">demand-physical[@vintage]</axis2>
+            <xPath buildList="true" dataName="input" group="false" sumAll="false">*[@type='sector']/
+                       *[@type='subsector']/*[@type='technology']/*[@type='input' and contains(@name,'H2')]/
+                       demand-physical/node()</xPath>
+            <comments/>
+        </supplyDemandQuery>
+      </aQuery>
+</queries>

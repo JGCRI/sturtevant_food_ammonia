@@ -74,7 +74,7 @@ if (QUERY_GCAM) {
   SCENARIOS <- c("elec_NH3_hicost", "elec_NH3_hicost_NH3ship",
                  "elec_NH3_locost", "elec_NH3_locost_NH3ship",
                  "NGCCS_NH3", "NGCCS_NH3_NH3ship")
-  QUERYFILE <- "BatchQueries_ammonia.xml"
+  QUERYFILE <- "queries_ammonia.xml"
 
   # query
   conn <- localDBConn(PATH_TO_GCAM, "database_basexdb")

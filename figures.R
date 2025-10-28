@@ -25,6 +25,7 @@ ANALYSIS_YEARS_FUTURE <- c(2030, 2035, 2040, 2045, 2050)
 ANALYSIS_REGIONS <- c("Africa_Southern", "Brazil", "China", "India", "USA", "Indonesia")
 
 # plot vars ----
+# TODO: rename refined liquids to petroleum
 FIGS_SAVE <- FALSE  # set to TRUE to save figures to FIGS_DIR
 scenario_levels <- c("Year 2020", "elec_NH3_hicost", "elec_NH3_locost", "NGCCS_NH3",
                      "elec_NH3_hicost_NH3ship", "elec_NH3_locost_NH3ship", "NGCCS_NH3_NH3ship")
@@ -413,6 +414,7 @@ ggplot(hydrogen_prod_tech_onescen, aes(x = year, y = value, fill = subsector)) +
 
 
 ## H2 prod 2050 ----
+# TODO: backout H2 used for ammonia/fert production and shipping to update figure 1b
 # focus on 2050 only for the elec_NH3 scenarios
 hydrogen_prod_tech_2050 <- getQuery(food_ammonia_proj, "hydrogen production by tech") %>%
   filter(year == 2050,

@@ -414,7 +414,7 @@ ggplot(hydrogen_prod_tech_onescen, aes(x = year, y = value, fill = subsector)) +
 
 
 ## H2 prod 2050 ----
-# TODO: backout H2 used for ammonia/fert production and shipping to update figure 1b
+
 # focus on 2050 only for the elec_NH3 scenarios
 hydrogen_prod_tech_2050 <- getQuery(food_ammonia_proj, "hydrogen production by tech") %>%
   filter(year == 2050,
@@ -456,6 +456,44 @@ fig3 <- ggplot(h2prod_plot, aes(x = scenario, y = value, fill = subsector)) +
 fig3
 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig3_hydrogen_prod_2050.png"), height = 5, width = 7, units = "in")}
+
+{# unfinished code
+
+# TODO: backout H2 used for ammonia/fert production and shipping to update figure 1b
+h2prodforammonia <- getQuery(food_ammonia_proj, "ammonia production by tech") %>%
+  filter(year %in% ANALYSIS_YEARS) %>%
+  filter(technology == "hydrogen") %>%
+  mutate(EJyr= (value * (1 - CONV_NH3_N))) %>%
+  group_by(scenario, year) %>%
+  summarise(EJyr = sum(EJyr)) %>%
+  ungroup()
+
+# get percentages on the bar plot
+h2prodnh3_plot <- h2prodforammonia %>%
+  filter(year == 2050) %>%
+  # scenario == "elec_NH3_hicost_NH3ship") %>%
+  group_by(scenario) %>%
+  # arrange by the actual stacking order (bottom to top: wind, solar, nuclear)
+  # arrange(match(subsector, c("wind", "solar", "nuclear"))) %>%
+  mutate(pct = round(100 * EJyr / sum(EJyr), 1),
+         pos = cumsum(EJyr) - 0.5 * EJyr,
+         # label = paste0(round(value, 1), " Mt\n", round(pct, 0), "%")
+         label = paste0(round(pct, 0), "%"))
+
+fig3_ <- ggplot(h2prodnh3_plot, aes(x = scenario, y = EJyr)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = pos, label = label, color = "white"), size = 3, show.legend = T) +
+  scale_color_manual(values = "gray60") +
+  scale_fill_manual(values = hydrogen_colors) +
+  labs(x = "", y = "Hydrogen Production (Mt H2)", fill = "H2 Sources", color = "text") +
+  guides(fill = guide_legend(override.aes = list(label = "%", size = 2)), color = "none") +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 10),
+        axis.title.y = element_text(face = "bold"),
+        legend.position = c(0.08, 0.9))
+
+fig3_
+} # unfinished code
 
 hydrogen_plot_fill <- hydrogen_prod_tech_2050 %>%
   group_by(scenario) %>%

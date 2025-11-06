@@ -63,6 +63,8 @@ DAYS_PER_YEAR <- 365.25
 CONV_PCAL_MCAL <- 1e9
 CONV_NH3_N <- 14/17    # convert mass of NH3 to mass of N
 
+HIST_YEARS <- c(1975, 1990, 2005, 2010, 2015, 2020, 2025)
+
 # query GCAM ----
 QUERY_GCAM <- FALSE # set to TRUE to re-query GCAM output
 OUTPUTFILE <- "food_ammonia.proj"

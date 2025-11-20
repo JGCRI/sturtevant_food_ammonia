@@ -1053,6 +1053,13 @@ ggplot(top_changes, aes(x = region, y = sector, fill = pct_diff)) +
 
 
 ### heat map with labels ----
+food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
+  group_by(scenario, region, input) %>%
+  mutate(index = value / value[year == 2020]) %>% ungroup() %>%
+  filter(year %in% ANALYSIS_YEARS) %>%
+  mutate(type = sub("FoodDemand_", "", input)) %>%
+  select(scenario, region, type, index, year, value)
+
 # calculate change in food demand from 2020 to 2050
 food_demand_changes_lab <- food_demand %>%
   filter(!grepl("_NH3ship$", scenario)) %>% # take out without NH3ship scenarios
@@ -1699,6 +1706,8 @@ ggplot(total_food_demand_pcd, aes(x = year, y = value, color = scenario, linetyp
         legend.box = "vertical",
         legend.title = element_text(face = "bold"))
 
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "Scenario_Calories.png"), height = 6, width = 8, units = "in")}
+
 ### Run wheat and soybean starting line 897 for query
 
 ### Agricultural price index change in 2050
@@ -1768,21 +1777,52 @@ fig3_combo
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig3_combo_macro.png"), height = 19, width = 15, units = "in")}
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig3_combo_macro.pdf"), height = 19, width = 15, units = "in")}
 
-### Jill addition 11/19/2025 map
-install.packages("cowplot")
-library(cowplot)
-library(gridExtra)
+### Jill addition 11/20/2025 map
+# Mapping food demand total kcal/person/day
+library(ggplot2)
+library(dplyr)
+library(maps)
 
-# Plot the food demand results on a map
-world <- map_data("world")
-food_ammonia_proj$elec_NH3_hicost$
-# Prepare food demand with type
+# Load world map
+world_map <- map_data("world")
+
+# Get ag price index by country
+ag_price_country_index <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
+  filter(year %in% ANALYSIS_YEARS, sector != "UnmanagedLand") %>%
+  group_by(region, year) %>%
+  summarise(value_sum = sum(value), .groups = "drop") %>%
+  group_by(region) %>%
+  mutate(index = value_sum / value_sum[year == 2020]) %>%
+  filter(year == 2035) %>%
+  rename(country = region)
+
+# Join index to map
+map_index <- world_map %>%
+  left_join(ag_price_country_index, by = c("region" = "country"))
+
+# Macroregion centroids for floating plots
+region_coords <- data.frame(
+  Region = c("North America", "Latin America", "Africa", "Europe", "Australia_NZ", "Russia", "Southeast Asia", "East Asia", "South and West Asia"),
+  lon = c(-150, -100, -10, -30, 210, 210, 210, 210, 70),
+  lat = c(35, -20, -20, 35, -55, 70, -10, 35, -20)
+)
+
+# Scaling factor for bar height
+scale_factor <- 200
+
+# Offsets for axis and labels
+x_title_offset <- -20
+x_label_offset <- -5
+x_axis_offset  <-  0
+bar_spacing    <-  1.0
+
+# Prepare food demand data
 food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
   filter(year %in% ANALYSIS_YEARS) %>%
   mutate(type = tolower(sub("FoodDemand_", "", input))) %>%
   select(scenario, region, type, year, value)
 
-# Aggregate by macroregion and scenario
+# Aggregate to macroregion level
 macroregion_food_demand <- food_demand %>%
   left_join(region_mapping, by = "region") %>%
   group_by(scenario, Region, year) %>%
@@ -1796,63 +1836,89 @@ macroregion_food_demand <- food_demand %>%
     by = c("scenario", "Region", "year")
   ) %>%
   mutate(value = value.pcal * CONV_PCAL_MCAL / value.pop / DAYS_PER_YEAR) %>%
-  filter(year == 2035)  # Only show 2035 values in the bar plots
+  filter(year == 2035)
 
-create_grob <- function(food_data, region_name){
-  p_inset <- ggplot(subset(food_data, Region == region_name),
-                    aes(x = scenario, y = value, fill = scenario)) +
-    geom_bar(stat = "identity", position = "dodge") +
-    ylim(c(0, 3500)) +
-    labs(title = region_name, y = "kcal/p/d", x = NULL) +
-    theme_minimal(base_size = 6) +
-    theme(
-      axis.text.x = element_blank(),
-      axis.ticks.x = element_blank(),
-      legend.position = "none",
-      panel.grid.major.x = element_blank(),
-      panel.grid.minor.x = element_blank(),
-      plot.title = element_text(hjust = 0.5, size = 7, face = "bold")
-    ) +
-    scale_fill_manual(values = scenario_colors_unique)
+# Bar plot data
+bar_data <- macroregion_food_demand %>%
+  left_join(region_coords, by = "Region") %>%
+  mutate(
+    scenario = factor(scenario, levels = unique(scenario)),
+    x = lon + x_axis_offset + (as.numeric(scenario) - mean(as.numeric(scenario))) * bar_spacing,
+    y0 = lat,
+    y1 = lat + value / scale_factor
+  )
 
-  ggplotGrob(p_inset)
-}
+# Y-axis tick labels
+tick_vals <- c(0, 1000, 2000, 3000)
+y_ticks <- expand.grid(
+  Region = unique(bar_data$Region),
+  tick_val = tick_vals
+) %>%
+  left_join(region_coords, by = "Region") %>%
+  mutate(
+    y = lat + tick_val / scale_factor,
+    x_label = lon + x_label_offset,
+    x_title = lon + x_title_offset,
+    label = tick_val
+  )
 
-g_nam <- create_grob(macroregion_food_demand, "North America")
-g_lam <- create_grob(macroregion_food_demand, "Latin America")
-g_afr <- create_grob(macroregion_food_demand, "Africa")
-g_eur <- create_grob(macroregion_food_demand, "Europe")
-g_aus <- create_grob(macroregion_food_demand, "Australia_NZ")
-g_rus <- create_grob(macroregion_food_demand, "Russia")
-g_sea <- create_grob(macroregion_food_demand, "Southeast Asia")
-g_eas <- create_grob(macroregion_food_demand, "East Asia")
-g_swa <- create_grob(macroregion_food_demand, "South and West Asia")
+# Y-axis title
+axis_titles <- region_coords %>%
+  mutate(
+    x = lon + x_title_offset,
+    y = lat + max(tick_vals) / scale_factor / 2,
+    label = "kcal/p/d"
+  )
 
-legend_plot <- ggplot(macroregion_food_demand, aes(x = scenario, y = value, fill = scenario)) +
-  geom_bar(stat = "identity") +
-  scale_fill_manual(values = scenario_colors_unique) +
-  theme(legend.position = "bottom")
+# Region labels
+region_labels <- bar_data %>%
+  group_by(Region) %>%
+  summarise(
+    lon = first(lon),
+    lat = first(lat),
+    max_y = max(y1)
+  ) %>%
+  mutate(label_y = max_y + 8)
 
-legend_grob <- cowplot::get_legend(legend_plot)
+# Final plot
+ggplot() +
+  # Base map filled by ag price index
+  geom_polygon(data = map_index, aes(x = long, y = lat, group = group, fill = index),
+               color = "grey60", size = 0.2) +
+  scale_fill_gradient(low = "lightyellow", high = "darkred", na.value = "white", name = "2035 Ag Price Index") +
 
+  # Mini bar plots
+  geom_segment(data = bar_data,
+               aes(x = x, xend = x, y = y0, yend = y1, color = scenario),
+               size = 1.2) +
 
-map_with_insets <- ggplot(world, aes(long, lat, group = group)) +
-  geom_polygon(fill = "grey90", color = "gray50") +
+  # Tick labels
+  geom_text(data = y_ticks,
+            aes(x = x_label, y = y, label = label),
+            hjust = 1, size = 2.2) +
+
+  # Y-axis titles
+  geom_text(data = axis_titles,
+            aes(x = x, y = y, label = label),
+            angle = 90, hjust = 0.5, size = 2.2, fontface = "bold") +
+
+  # Region labels
+  geom_label(data = region_labels,
+             aes(x = lon, y = label_y, label = Region),
+             size = 2.2, fontface = "bold",
+             fill = alpha("tan", 0.6), label.size = NA) +
+
+  # Styling
+  scale_color_manual(values = scenario_colors_unique, name = "Scenario") +
   coord_fixed(1.3) +
-  theme_void() +
-  annotation_custom(g_nam, xmin = -140, xmax = -100, ymin = 35, ymax = 65) +  # shifted west
-  annotation_custom(g_lam, xmin = -90, xmax = -50, ymin = -40, ymax = -10) +  # shifted south
-  annotation_custom(g_afr, xmin = 10, xmax = 50, ymin = -10, ymax = 20) +     # shifted east
-  annotation_custom(g_eur, xmin = 10, xmax = 50, ymin = 45, ymax = 75) +      # shifted northeast
-  annotation_custom(g_aus, xmin = 135, xmax = 175, ymin = -50, ymax = -20) +  # shifted east
-  annotation_custom(g_rus, xmin = 100, xmax = 140, ymin = 65, ymax = 95) +    # shifted northeast
-  annotation_custom(g_sea, xmin = 130, xmax = 170, ymin = 0, ymax = 30) +     # shifted east
-  annotation_custom(g_eas, xmin = 120, xmax = 160, ymin = 30, ymax = 60) +    # shifted east
-  annotation_custom(g_swa, xmin = 70, xmax = 110, ymin = 25, ymax = 55)       # shifted east
+  theme_minimal(base_size = 9) +
+  theme(
+    legend.title = element_text(face = "bold", size = 9),
+    legend.position = "bottom",
+    panel.grid = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank()
+  )
 
-grid.arrange(map_with_insets, legend_grob, ncol = 1, heights = c(10, 1))
-
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "food_demand_map.png"), height = 6, width = 8, units = "in")}
-
-
-
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "Food_Demand_Map.png"), height = 6, width = 8, units = "in")}

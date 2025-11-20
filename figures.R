@@ -589,7 +589,29 @@ ammonia_prod_tech_plot <- ammonia_prod_tech %>%
          label = paste0(round(pct, 0), "%")) %>%
   ungroup()
 
-ggplot(ammonia_prod_tech_plot) +
+### Jill addition, 11/14/2025
+fig4a_redo <- ggplot(ammonia_prod_tech_plot) +
+  geom_bar(aes(x = year, y = value, fill = technology), stat = "identity") +
+  facet_wrap(~scenario) +
+
+  geom_label(
+    aes(x = year, y = pos, label = ifelse(pct >= 15, label, NA)),
+    fill = "white", alpha = 0, color = "deeppink4", size = 2.1, fontface = "bold",
+    linewidth = 0, show.legend = FALSE
+  ) +
+
+  scale_fill_manual(values = ammonia_tech_colors) +
+  labs(x = "", y = "Ammonia Production (Mt NH3)", fill = "NH3 Technology") +
+  guides(fill = guide_legend(override.aes = list(label = "%", size = 2))) +
+  mytheme +
+  theme(axis.title.y = element_text(face = "bold"),
+        legend.position = c(0.085, 0.88),
+        legend.box.background = element_rect(colour = "deeppink4", size = 0.1),
+        legend.spacing = unit(0.001, "cm"),
+        legend.key.height = unit(0.4, "cm"))
+
+### Original code by Hassan
+fig4a<-ggplot(ammonia_prod_tech_plot) +
   geom_bar(aes(x = year, y = value, fill = technology), stat = "identity") +
   facet_wrap(~scenario) +
   geom_text(aes(x = year, y = pos, label = ifelse(pct >= 15, label, ""),
@@ -751,6 +773,32 @@ ggplot(Nfert_prices %>% filter(region %in% c("India", "USA", "South Africa", "In
 
 
 # True fig 2 composite ----
+## Jill addition 11/14/2025, replacing fig4a with fig4a_redo
+
+fig2_combo <- (
+  ((fig4a_redo +
+      theme(legend.position = "bottom",
+            legend.key.size = unit(0.4, "cm"),
+            # axis.text.x = element_text(angle = 0)
+      )) |
+     (fig4b + theme(legend.position = "bottom",
+                    legend.spacing = unit(0.001, "cm"), # reduce vertical gap between legend breaks
+                    legend.key.height = unit(0.4, "cm")))
+  ) # + plot_layout(heights = c(0.995, 1.05))
+) +
+  plot_annotation(tag_levels = 'a') +
+  plot_layout(widths = c(1, 1)) &
+  theme(plot.tag = element_text(face = "bold", size = 14)) &
+  theme(axis.text.x = element_text(angle = 90),
+        legend.text = element_text(size = 8),
+        axis.title.y = element_text(face = "bold"))
+
+fig2_combo
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_combo.png"), height = 7, width = 14, units = "in")}
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_combo.pdf"), height = 7, width = 14, units = "in")}
+
+### Original code from Hassan
 fig2_combo <- (
                  ((fig4a + geom_text(data = ammonia_totals,
                                      aes(x = year, y = 1.05, label = paste0(round(total, 0), "Mt")),
@@ -1557,4 +1605,254 @@ ggplot(ghg_shipping_plot,
 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "ghg_shipping.png"), height = 6, width = 8, units = "in")}
 # ggsave("figures/ghg_shipping.png", height = 6, width = 8, units = "in")
+
+
+### Jill addition, macroregion food demand 11/19/2025
+### Figure 3 aggregated into macro-regions
+#food demand ----
+food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
+  group_by(scenario, region, input) %>%
+  mutate(index = value / value[year == 2020]) %>% ungroup() %>%
+  filter(year %in% ANALYSIS_YEARS) %>%
+  mutate(type = sub("FoodDemand_", "", input)) %>%
+  select(scenario, region, type, index, year, value)
+
+macroregion_food_demand_pcd <- food_demand %>%
+  left_join(region_mapping, by = "region") %>%
+  group_by(scenario, Region, type, year) %>%
+  summarise(value.pcal = sum(value), .groups = "drop") %>%
+  left_join(
+    getQuery(food_ammonia_proj, "population by region") %>%
+      filter(year %in% c(2020, 2050)) %>%
+      left_join(region_mapping, by = "region") %>%
+      group_by(scenario, Region, year) %>%
+      summarise(value.pop = sum(value), .groups = "drop"),
+    by = c("scenario", "Region", "year")
+  ) %>%
+  mutate(value = value.pcal * CONV_PCAL_MCAL / value.pop / DAYS_PER_YEAR)
+
+#Calculate change from 2020 to 2050
+food_demand_changes_macro <- macroregion_food_demand_pcd %>%
+  select(scenario, Region, type, year, value) %>%
+  pivot_wider(names_from = year, values_from = value, names_prefix = "year_") %>%
+  mutate(diff = year_2050 - year_2020,
+         pct_diff = round(100 * (year_2050 - year_2020) / year_2020, 1))
+
+#plot
+heat_fooddemandchange_macro <- ggplot(food_demand_changes_macro, aes(x = Region, y = scenario, fill = diff)) +
+  geom_tile(color = "white", size = 0.1) +
+  facet_wrap(~type) +
+  scale_fill_gradientn(
+    colors = c("blue", "white", "red"),
+    values = scales::rescale(c(min(food_demand_changes_macro$diff),
+                               0,
+                               max(food_demand_changes_macro$diff))),
+    name = "Change \n(kcal/pers/d)"
+  )+
+  labs(x = "", y = "",
+       subtitle = paste0("Per Capita Food Demand Change from 2020 to 2050 by Food Type. ",
+                         "Range: ", round(min(food_demand_changes_macro$diff), 1), " to ",
+                         round(max(food_demand_changes_macro$diff), 1), " (kcal/pers/d)")) +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.text.y = element_text(hjust = 0),
+        plot.subtitle = element_text(hjust = 0.5),
+        strip.text = element_text(size = 10))
+
+heat_fooddemandchange_macro
+
+### Line graph for figure 3a
+#prepare food demand with type
+food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
+  group_by(scenario, region, input) %>%
+  mutate(index = value / value[year == 2020]) %>%
+  ungroup() %>%
+  filter(year %in% ANALYSIS_YEARS) %>%
+  mutate(type = tolower(sub("FoodDemand_", "", input))) %>%
+  select(scenario, region, type, index, year, value)
+
+#aggregate total calories across all regions
+total_food_demand_pcd <- food_demand %>%
+  group_by(scenario, type, year) %>%
+  summarise(value.pcal = sum(value), .groups = "drop") %>%
+  left_join(
+    getQuery(food_ammonia_proj, "population by region") %>%
+      filter(year %in% ANALYSIS_YEARS) %>%
+      group_by(scenario, year) %>%
+      summarise(value.pop = sum(value), .groups = "drop"),
+    by = c("scenario", "year")
+  ) %>%
+  mutate(value = value.pcal * CONV_PCAL_MCAL / value.pop / DAYS_PER_YEAR) %>%
+  filter(!is.na(value), is.finite(value))
+
+#total per capita calories over time
+ggplot(total_food_demand_pcd, aes(x = year, y = value, color = scenario, linetype = type)) +
+  geom_line(size = 1.2) +
+  scale_linetype_manual(values = c("staples" = "solid", "nonstaples" = "dashed")) +
+  labs(x = "Year", y = "Per Capita Calories (kcal/pers/day)",
+       color = "Scenario", linetype = "Food Type",
+       title = "Global Per Capita Food Demand Over Time") +
+  ylim(0, NA) +
+  mytheme +
+  theme(axis.title.y = element_text(face = "bold"),
+        legend.position = "bottom",
+        legend.box = "vertical",
+        legend.title = element_text(face = "bold"))
+
+### Run wheat and soybean starting line 897 for query
+
+### Agricultural price index change in 2050
+# Add macroregion info
+ag_price_diffs_2050_macro <- ag_price_diffs_2050 %>%
+  left_join(region_mapping, by = "region")
+
+# Heatmap with macroregions
+heat_food_price_indices_macro <- ggplot(ag_price_diffs_2050_macro,
+                                        aes(x = sector, y = Region, fill = pct_diff)) +
+  geom_tile(color = "white", size = 0.1) +
+  facet_wrap(~base_scenario) +
+  scale_fill_gradientn(
+    colors = c("blue", "white", "red"),
+    values = scales::rescale(c(min(ag_price_diffs_2050_macro$pct_diff),
+                               0,
+                               max(ag_price_diffs_2050_macro$pct_diff))),
+    name = "Change (%)"
+  ) +
+  labs(x = "", y = "",
+       subtitle = paste0("Agricultural Price Index Change in 2050 due to NH3 Shipping. \n",
+                         "Positive values indicate price increase due to NH3 shipping. ",
+                         "The only positive macroregion_sectors are: ",
+                         paste0(ag_price_diffs_2050_macro %>%
+                                  filter(pct_diff > 0) %>%
+                                  mutate(region_sector = paste0(Region, "_", sector)) %>%
+                                  pull(region_sector) %>%
+                                  unique(), collapse = ", ")
+       )) +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.subtitle = element_text(hjust = 0.5),
+        strip.text = element_text(size = 10))
+
+heat_food_price_indices_macro
+
+# Fig 3 food demand by macroregion -----
+fig3_combo <- (
+  # (heat_fooddemandchange + theme(axis.text.x = element_text(angle = 45)) ) /
+  # (heat_fooddemandchange_pct + theme(axis.text.x = element_text(angle = 45)) ) /
+  (heat_fooddemandchange_macro +
+     theme(plot.tag = element_text(face = "bold", size = 14),
+           axis.text.x = element_text(angle = 45)) ) /
+    # (heat_fooddemandchange_pct_pcd + theme(axis.text.x = element_text(angle = 45)) ) /
+    (
+      (fig_wheat_price_index + scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
+         theme(plot.tag = element_text(face = "bold", size = 14))
+       | fig_soybean_price_index) +
+        scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
+        plot_layout(guides = "collect") +
+        theme(plot.tag = element_text(face = "bold", size = 14),
+              legend.position = "right")
+    )
+  / (heat_food_price_indices_macro)
+  # / (heat_food_price_indices_reg)
+) +
+  plot_annotation(tag_levels = 'a') +
+  # plot_layout(guides = "collect") &
+  theme(plot.tag = element_text(face = "bold", size = 14),
+        legend.position = "right",
+        # axis.text.x = element_text(angle = 90),
+        legend.text = element_text(size = 8),
+        axis.title.y = element_text(face = "bold"))
+
+fig3_combo
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig3_combo_macro.png"), height = 19, width = 15, units = "in")}
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig3_combo_macro.pdf"), height = 19, width = 15, units = "in")}
+
+### Jill addition 11/19/2025 map
+install.packages("cowplot")
+library(cowplot)
+library(gridExtra)
+
+# Plot the food demand results on a map
+world <- map_data("world")
+food_ammonia_proj$elec_NH3_hicost$
+# Prepare food demand with type
+food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
+  filter(year %in% ANALYSIS_YEARS) %>%
+  mutate(type = tolower(sub("FoodDemand_", "", input))) %>%
+  select(scenario, region, type, year, value)
+
+# Aggregate by macroregion and scenario
+macroregion_food_demand <- food_demand %>%
+  left_join(region_mapping, by = "region") %>%
+  group_by(scenario, Region, year) %>%
+  summarise(value.pcal = sum(value), .groups = "drop") %>%
+  left_join(
+    getQuery(food_ammonia_proj, "population by region") %>%
+      filter(year %in% ANALYSIS_YEARS) %>%
+      left_join(region_mapping, by = "region") %>%
+      group_by(scenario, Region, year) %>%
+      summarise(value.pop = sum(value), .groups = "drop"),
+    by = c("scenario", "Region", "year")
+  ) %>%
+  mutate(value = value.pcal * CONV_PCAL_MCAL / value.pop / DAYS_PER_YEAR) %>%
+  filter(year == 2035)  # Only show 2035 values in the bar plots
+
+create_grob <- function(food_data, region_name){
+  p_inset <- ggplot(subset(food_data, Region == region_name),
+                    aes(x = scenario, y = value, fill = scenario)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    ylim(c(0, 3500)) +
+    labs(title = region_name, y = "kcal/p/d", x = NULL) +
+    theme_minimal(base_size = 6) +
+    theme(
+      axis.text.x = element_blank(),
+      axis.ticks.x = element_blank(),
+      legend.position = "none",
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(),
+      plot.title = element_text(hjust = 0.5, size = 7, face = "bold")
+    ) +
+    scale_fill_manual(values = scenario_colors_unique)
+
+  ggplotGrob(p_inset)
+}
+
+g_nam <- create_grob(macroregion_food_demand, "North America")
+g_lam <- create_grob(macroregion_food_demand, "Latin America")
+g_afr <- create_grob(macroregion_food_demand, "Africa")
+g_eur <- create_grob(macroregion_food_demand, "Europe")
+g_aus <- create_grob(macroregion_food_demand, "Australia_NZ")
+g_rus <- create_grob(macroregion_food_demand, "Russia")
+g_sea <- create_grob(macroregion_food_demand, "Southeast Asia")
+g_eas <- create_grob(macroregion_food_demand, "East Asia")
+g_swa <- create_grob(macroregion_food_demand, "South and West Asia")
+
+legend_plot <- ggplot(macroregion_food_demand, aes(x = scenario, y = value, fill = scenario)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = scenario_colors_unique) +
+  theme(legend.position = "bottom")
+
+legend_grob <- cowplot::get_legend(legend_plot)
+
+
+map_with_insets <- ggplot(world, aes(long, lat, group = group)) +
+  geom_polygon(fill = "grey90", color = "gray50") +
+  coord_fixed(1.3) +
+  theme_void() +
+  annotation_custom(g_nam, xmin = -140, xmax = -100, ymin = 35, ymax = 65) +  # shifted west
+  annotation_custom(g_lam, xmin = -90, xmax = -50, ymin = -40, ymax = -10) +  # shifted south
+  annotation_custom(g_afr, xmin = 10, xmax = 50, ymin = -10, ymax = 20) +     # shifted east
+  annotation_custom(g_eur, xmin = 10, xmax = 50, ymin = 45, ymax = 75) +      # shifted northeast
+  annotation_custom(g_aus, xmin = 135, xmax = 175, ymin = -50, ymax = -20) +  # shifted east
+  annotation_custom(g_rus, xmin = 100, xmax = 140, ymin = 65, ymax = 95) +    # shifted northeast
+  annotation_custom(g_sea, xmin = 130, xmax = 170, ymin = 0, ymax = 30) +     # shifted east
+  annotation_custom(g_eas, xmin = 120, xmax = 160, ymin = 30, ymax = 60) +    # shifted east
+  annotation_custom(g_swa, xmin = 70, xmax = 110, ymin = 25, ymax = 55)       # shifted east
+
+grid.arrange(map_with_insets, legend_grob, ncol = 1, heights = c(10, 1))
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "food_demand_map.png"), height = 6, width = 8, units = "in")}
+
+
 

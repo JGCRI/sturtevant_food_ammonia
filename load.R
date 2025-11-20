@@ -47,7 +47,7 @@ library(egg)
 
 # paths ----
 DATA_DIR <- "data/"
-FIGS_DIR <- "figures/v1/" # change the subfolder here if desired
+FIGS_DIR <- "figures/v3/" # change the subfolder here if desired
 
 # create figs dir if it doesn't exist
 if (!dir.exists(FIGS_DIR)) {

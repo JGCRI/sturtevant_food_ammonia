@@ -1791,14 +1791,57 @@ ag_price_country_index <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
   filter(year %in% ANALYSIS_YEARS, sector != "UnmanagedLand") %>%
   group_by(region, year) %>%
   summarise(value_sum = sum(value), .groups = "drop") %>%
-  group_by(region) %>%
   mutate(index = value_sum / value_sum[year == 2020]) %>%
-  filter(year == 2035) %>%
-  rename(country = region)
+  filter(year == 2035)
+
+# call in GCAM region dataset
+iso_region_GCAM <- read_csv(paste0(DATA_DIR, "iso_GCAM_regID.csv"))
+GCAM_region_names <- read_csv(paste0(DATA_DIR, "GCAM_region_names.csv"), skip = 6)
+
+iso_reg <- iso_region_GCAM %>%
+  left_join(GCAM_region_names, by = "GCAM_region_ID") %>%
+  select(iso,country_name,GCAM_region_ID, region)
+
+ag_price_country_names <- ag_price_country_index %>%
+  left_join(iso_reg, by = "region") %>%
+  rename(GCAM_region = region)
 
 # Join index to map
 map_index <- world_map %>%
-  left_join(ag_price_country_index, by = c("region" = "country"))
+  left_join(ag_price_rmap_countries, by = c("region"="country_name"))
+
+# There are country names that don't match between GCAM and Rmap, determine the differences and correct them
+unmatched_regions <- world_map %>%
+  anti_join(ag_price_rmap_countries, by = c("region" = "country_name")) %>%
+  distinct(region) %>%
+  arrange(region)
+
+unmatched_country_names <- ag_price_rmap_countries %>%
+  anti_join(world_map, by = c("country_name" = "region")) %>%
+  distinct(country_name) %>%
+  arrange(country_name)
+
+# Combine into a two-column data frame (with NA padding if lengths differ)
+comparison_table <- tibble::tibble(
+  region = unmatched_regions$region,
+  country_name = c(unmatched_country_names$country_name, rep(NA, max(0, nrow(unmatched_regions) - nrow(unmatched_country_names))))
+)
+
+write_csv(comparison_table, "unmatched_country_names.csv")
+
+#altered the csv manually to match the Rmap region names to the country names of
+#GCAM since Rmap doesn't report countries by iso
+
+# call in
+name_map <- read_csv(paste0("unmatched_countries.csv"))
+
+# Add corrected country_name to world_map
+world_map_fixed <- world_map %>%
+  left_join(name_map, by = "region") %>%
+  mutate(country_name = coalesce(country_name, region))
+
+map_index <- world_map_fixed %>%
+  left_join(ag_price_rmap_countries, by = "country_name")
 
 # Macroregion centroids for floating plots
 region_coords <- data.frame(
@@ -1885,7 +1928,7 @@ ggplot() +
   # Base map filled by ag price index
   geom_polygon(data = map_index, aes(x = long, y = lat, group = group, fill = index),
                color = "grey60", size = 0.2) +
-  scale_fill_gradient(low = "lightyellow", high = "darkred", na.value = "white", name = "2035 Ag Price Index") +
+  scale_fill_gradient(low = "lightyellow", high = "darkred", na.value = "gray", name = "2035 Ag Price Index") +
 
   # Mini bar plots
   geom_segment(data = bar_data,

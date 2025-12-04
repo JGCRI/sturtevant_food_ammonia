@@ -195,7 +195,6 @@ ggplot(Fuel_Consumption_complete,
 
 # if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig1_alt_allyr_EJ.png"), height = 6, width = 8, units = "in")}
 
-
 ## combined fuels and energy ----
 
 # scale energy to match fuel consumption visually
@@ -1118,7 +1117,7 @@ fig_wheat_price_index <- ggplot(wheat_price_index %>% filter(region %in% ANALYSI
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
   scale_y_continuous(limits = c(NA, 1.2)) +
-  labs(x = "", y = "Wheat Price Index (rel. 2020)", color = "Scenario") +
+  labs(x = "", y = "Wheat Price Index", color = "Scenario") +
   mytheme +
   theme(axis.text.x = element_text(angle = 90))
 
@@ -1170,7 +1169,7 @@ ggplot(corn_price_index, aes(x = year, y = index, color = scenario, linetype = N
   geom_line() +
   facet_grid(~region) +
   scale_color_manual(values = scenario_colors_J1) +
-  labs(x = "", y = "Corn Price Index (rel. 2020)", color = "Scenario") +
+  labs(x = "", y = "Corn Price Index", color = "Scenario") +
   mytheme +
   theme(axis.text.x = element_text(angle = 90))
 
@@ -1193,7 +1192,7 @@ fig_soybean_price_index <- ggplot(soybean_price_index %>% filter(region %in% ANA
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
   scale_y_continuous(limits = c(NA, 1.2)) +
-  labs(x = "", y = "Soybean Price Index (rel. 2020)", color = "Scenario") +
+  labs(x = "", y = "Soybean Price Index", color = "Scenario") +
   mytheme +
   theme(axis.text.x = element_text(angle = 90))
 
@@ -1841,23 +1840,42 @@ world_map_fixed <- world_map %>%
   mutate(country_name = coalesce(country_name, region))
 
 map_index <- world_map_fixed %>%
-  left_join(ag_price_rmap_countries, by = "country_name")
+  left_join(ag_price_country_names, by = "country_name")
 
 # Macroregion centroids for floating plots
+# Macroregion centroids for floating plots
 region_coords <- data.frame(
-  Region = c("North America", "Latin America", "Africa", "Europe", "Australia_NZ", "Russia", "Southeast Asia", "East Asia", "South and West Asia"),
-  lon = c(-150, -100, -10, -30, 210, 210, 210, 210, 70),
-  lat = c(35, -20, -20, 35, -55, 70, -10, 35, -20)
+  Region = c("North America", "Latin America", "Africa", "Europe",
+             "Australia_NZ", "Russia", "Southeast Asia", "East Asia",
+             "South and West Asia"),
+  lon = c(-165,  # North America left
+          -115,  # Latin America left
+          -10,   # Africa unchanged in lon
+          -45,   # Europe left
+          150,   # Australia_NZ unchanged
+          190,   # Russia unchanged
+          190,   # Southeast Asia unchanged
+          190,   # East Asia unchanged
+          70),   # South and West Asia unchanged in lon
+  lat = c(20,    # North America down
+          -30,   # Latin America down
+          -70,   # Africa down
+          20,    # Europe down
+          -70,   # Australia_NZ unchanged
+          60,    # Russia unchanged
+          -20,   # Southeast Asia unchanged
+          20,    # East Asia unchanged
+          -70)   # South and West Asia down
 )
 
 # Scaling factor for bar height
-scale_factor <- 200
+scale_factor <- 130
 
 # Offsets for axis and labels
-x_title_offset <- -20
-x_label_offset <- -5
+x_title_offset <- -27
+x_label_offset <- -13
 x_axis_offset  <-  0
-bar_spacing    <-  1.0
+bar_spacing    <-  3.3
 
 # Prepare food demand data
 food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
@@ -1905,45 +1923,72 @@ y_ticks <- expand.grid(
     label = tick_val
   )
 
-# Y-axis title
-axis_titles <- region_coords %>%
+# Region labels
+region_labels <- region_coords %>%
+  mutate(label_y = lat - 4)  # label_offset is a small positive number
+
+# Compute global maximum kcal/p/d
+global_max_kcal <- max(macroregion_food_demand$value)
+
+# Create horizontal line data for each region
+global_max_lines <- region_coords %>%
   mutate(
-    x = lon + x_title_offset,
-    y = lat + max(tick_vals) / scale_factor / 2,
-    label = "kcal/p/d"
+    y = lat + global_max_kcal / scale_factor,
+    x_start = lon - (bar_spacing * length(unique(bar_data$scenario)) / 2),
+    x_end   = lon + (bar_spacing * length(unique(bar_data$scenario)) / 2)
   )
 
-# Region labels
-region_labels <- bar_data %>%
-  group_by(Region) %>%
-  summarise(
-    lon = first(lon),
-    lat = first(lat),
-    max_y = max(y1)
-  ) %>%
-  mutate(label_y = max_y + 8)
+map_index <- map_index %>% filter(region != "Antarctica")
+
+map_index$index_group <- dplyr::case_when(
+  map_index$index < 1 ~ "<2020",
+  map_index$index == 1 ~ "=1",
+  map_index$index > 1 ~ ">2020",
+  TRUE ~ NA_character_
+)
 
 # Final plot
-ggplot() +
-  # Base map filled by ag price index
-  geom_polygon(data = map_index, aes(x = long, y = lat, group = group, fill = index),
-               color = "grey60", size = 0.2) +
-  scale_fill_gradient(low = "lightyellow", high = "darkred", na.value = "gray", name = "2035 Ag Price Index") +
+# Add a column to global_max_lines to identify the line type
+global_max_lines <- global_max_lines %>%
+  mutate(line_type = "Global Max")
+
+# Plot
+map <- ggplot() +
+  # Base map
+  geom_polygon(
+    data = map_index,
+    aes(x = long, y = lat, group = group, fill = index_group),
+    color = "grey60", size = 0.2
+  ) +
+  scale_fill_manual(
+    values = c("<2020" = "lightyellow", "=1" = "orange", ">2020" = "darkred"),
+    name = "2035 Ag Price index"
+  ) +
 
   # Mini bar plots
-  geom_segment(data = bar_data,
-               aes(x = x, xend = x, y = y0, yend = y1, color = scenario),
-               size = 1.2) +
+  geom_segment(
+    data = bar_data,
+    aes(x = x, xend = x, y = y0, yend = y1, color = scenario),
+    size = 2.5
+  ) +
+
+  # Global max reference lines, now with linetype mapped
+  geom_segment(
+    data = global_max_lines,
+    aes(x = x_start, xend = x_end, y = y, yend = y, linetype = line_type),
+    color = "black", size = 0.6
+  ) +
+
+  # Define linetype legend
+  scale_linetype_manual(
+    values = c("Global Max" = "dotted"),
+    name = NULL   # or "Reference"
+  ) +
 
   # Tick labels
   geom_text(data = y_ticks,
             aes(x = x_label, y = y, label = label),
             hjust = 1, size = 2.2) +
-
-  # Y-axis titles
-  geom_text(data = axis_titles,
-            aes(x = x, y = y, label = label),
-            angle = 90, hjust = 0.5, size = 2.2, fontface = "bold") +
 
   # Region labels
   geom_label(data = region_labels,
@@ -1952,16 +1997,89 @@ ggplot() +
              fill = alpha("tan", 0.6), label.size = NA) +
 
   # Styling
-  scale_color_manual(values = scenario_colors_unique, name = "Scenario") +
-  coord_fixed(1.3) +
-  theme_minimal(base_size = 9) +
+  scale_color_manual(
+    values = scenario_colors_unique,
+    name = "Scenario",
+    guide = guide_legend(
+      ncol = 1,
+      byrow = TRUE,
+      title.position = "top",
+      label.position = "right"
+    )
+  ) +
   theme(
-    legend.title = element_text(face = "bold", size = 9),
-    legend.position = "bottom",
+    legend.position = "right",   # put legends beside the map
+    legend.title = element_text(face = "bold", size = 8),
+    legend.text = element_text(size = 7),
+    legend.key.size = unit(0.4, "lines"),
+    legend.spacing.x = unit(0.3, "lines"),
+    legend.spacing.y = unit(0.2, "lines"),
+    legend.box = "vertical",     # stack legends vertically
     panel.grid = element_blank(),
     axis.text = element_blank(),
     axis.ticks = element_blank(),
     axis.title = element_blank()
   )
+map1 <-map + annotate("text",
+           x = min(map_index$long) - 20,   # push left of map
+           y = mean(range(map_index$lat)), # vertically centered
+           label = "kcal/person/day",
+           angle = 90, hjust = 0.5,
+           size = 3, fontface = "bold")
 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "Food_Demand_Map.png"), height = 6, width = 8, units = "in")}
+####
+map_panel <- map1 + theme(
+  plot.tag       = element_text(face = "bold", size = 14),
+  axis.text.x    = element_blank(),
+  axis.text.y    = element_blank(),
+  legend.position = "right",          # legends to the right of the map
+  legend.box     = "vertical"         # stack legends on top of one another
+)
+
+fig_wheat_price_index_fixed <- fig_wheat_price_index +
+  facet_wrap(~ region, labeller = labeller(
+    region = c("Africa_Southern" = "Africa\nSouthern")
+  )) +
+  scale_x_continuous(
+    limits = c(2020, 2050),
+    breaks = seq(2020, 2050, by = 15)
+  ) +
+  theme(
+    plot.tag     = element_text(face = "bold", size = 10),
+    axis.title.y = element_text(face = "bold", size = 8),
+    axis.text.y  = element_text(size = 7),        # smaller y-axis numbers
+    strip.text   = element_text(size = 7, face = "bold")
+  )
+
+fig_soybean_price_index_fixed <- fig_soybean_price_index +
+  facet_wrap(~ region, labeller = labeller(
+    region = c("Africa_Southern" = "Africa\nSouthern")
+  )) +
+  scale_x_continuous(
+    limits = c(2020, 2050),
+    breaks = seq(2020, 2050, by = 15)
+  ) +
+  theme(
+    plot.tag     = element_text(face = "bold", size = 10),
+    axis.title.y = element_text(face = "bold", size = 8),
+    axis.text.y  = element_text(size = 7),        # smaller y-axis numbers
+    strip.text   = element_text(size = 7, face = "bold")
+  )
+
+line_panel <- (fig_wheat_price_index_fixed | fig_soybean_price_index_fixed) +
+  plot_layout(guides = "collect") &
+  theme(
+    legend.position = "right",   # shared legend to the right of line graphs
+    legend.text     = element_text(size = 8),
+    axis.title.y    = element_text(face = "bold")
+  )
+
+fig3_combo <- (map_panel) / (line_panel) +
+  plot_layout(heights = c(4, 1)) +
+  plot_annotation(tag_levels = 'a') &
+  theme(plot.tag = element_text(face = "bold", size = 14))
+fig3_combo
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "Figure3_redo.png"), height = 6, width = 8, units = "in")}
+####

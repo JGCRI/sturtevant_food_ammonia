@@ -1159,7 +1159,7 @@ ggplot(rice_price_index, aes(x = year, y = index, color = scenario, linetype = N
   mytheme +
   theme(axis.text.x = element_text(angle = 90))
 
-# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "price_index_rice.png"), height = 6, width = 8, units = "in")}
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "price_index_rice.png"), height = 8, width = 11, units = "in")}
 
 
 #### Corn ----
@@ -1169,11 +1169,11 @@ ggplot(corn_price_index, aes(x = year, y = index, color = scenario, linetype = N
   geom_line() +
   facet_grid(~region) +
   scale_color_manual(values = scenario_colors_J1) +
-  labs(x = "", y = "Corn Price Index", color = "Scenario") +
+  labs(x = "", y = "Corn Price Index (rel. 2020)", color = "Scenario") +
   mytheme +
   theme(axis.text.x = element_text(angle = 90))
 
-# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "price_index_corn.png"), height = 6, width = 8, units = "in")}
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "price_index_corn.png"), height = 8, width = 11, units = "in")}
 
 
 #### Soybean ----
@@ -1202,18 +1202,19 @@ fig_soybean_price_index
 
 
 #### Legumes ----
-legumes_price_index <- ag_prices_index %>% filter(sector == "Legumes", region %in% ANALYSIS_REGIONS)
+legumes_price_index <- ag_prices_index %>%
+  filter(sector == "Legumes", region %in% ANALYSIS_REGIONS)
 
-ggplot(legumes_price_index, aes(x = year, y = index, color = scenario, linetype = NH3ship)) +
+ggplot(legumes_price_index,
+       aes(x = year, y = index, color = scenario, linetype = NH3ship)) +
   geom_line() +
-  facet_grid(~region) +
+  facet_grid(~ region) +
   scale_color_manual(values = scenario_colors_J1) +
-  scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
   labs(x = "", y = "Legumes Price Index (rel. 2020)", color = "Scenario") +
   mytheme +
   theme(axis.text.x = element_text(angle = 90))
 
-# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "price_index_legumes.png"), height = 6, width = 8, units = "in")}
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "price_index_legumes.png"), height = 8, width = 11, units = "in")}
 
 
 ## food commodity prices in $/t ----
@@ -2076,10 +2077,86 @@ line_panel <- (fig_wheat_price_index_fixed | fig_soybean_price_index_fixed) +
   )
 
 fig3_combo <- (map_panel) / (line_panel) +
-  plot_layout(heights = c(4, 1)) +
+  plot_layout(heights = c(1, 4)) +
   plot_annotation(tag_levels = 'a') &
   theme(plot.tag = element_text(face = "bold", size = 14))
 fig3_combo
 
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "Figure3_redo.png"), height = 6, width = 8, units = "in")}
+map_centered <- (
+  plot_spacer() +
+    map_panel +
+    plot_spacer()
+) +
+  plot_layout(widths = c(0.4, 3.2, 0.4))   # wider map, still centered
+
+fig3_combo <-
+  (map_centered) /
+  (line_panel) +
+  plot_layout(heights = c(3.75, 4)) +
+  plot_annotation(tag_levels = 'a') &
+  theme(plot.tag = element_text(face = "bold", size = 14))
+fig3_combo
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "Figure3_adjustment.png"), height = 8, width = 11, units = "in")}
 ####
+##Quantitative information for the abstract
+
+# Step 1: aggregate kcal/person/day across all regions for each scenario
+scenario_summary <- macroregion_food_demand %>%
+  group_by(scenario) %>%
+  summarise(
+    mean_value = mean(value, na.rm = TRUE),   # average across regions
+    .groups = "drop"
+  )
+
+# Step 2: define scenario pairs
+scenario_pairs <- list(
+  c("NGCCS_NH3", "NGCCS_NH3_NH3ship"),
+  c("elec_NH3_hicost", "elec_NH3_hicost_NH3ship"),
+  c("elec_NH3_locost", "elec_NH3_locost_NH3ship")
+)
+
+# Step 3: compare each pair with absolute difference
+comparison_results <- lapply(scenario_pairs, function(pair) {
+  scenario_summary %>%
+    filter(scenario %in% pair) %>%
+    pivot_wider(names_from = scenario, values_from = mean_value) %>%
+    mutate(
+      difference_abs = abs(!!sym(pair[2]) - !!sym(pair[1])),
+      difference_pct = abs((!!sym(pair[2]) - !!sym(pair[1])) / !!sym(pair[1])) * 100,
+      scenario_pair = paste(pair[1], "vs", pair[2])
+    )
+})
+
+# Step 4: bind into one table
+comparison_results <- bind_rows(comparison_results)
+
+comparison_results
+
+##Comparing magnitudes of energy between food demand and maritime fuel
+
+# Convert food kcal/person/day into EJ/year
+food_EJ <- macroregion_food_demand %>%
+  mutate(
+    # kcal/person/day × population × 365 × 4184 J/kcal → EJ
+    EJyr = value * value.pop * 365 * 4184 / 1e18
+  ) %>%
+  group_by(scenario) %>%
+  summarise(food_EJyr = sum(EJyr), .groups = "drop")
+
+# Fuel consumption EJ/year is already available
+fuel_EJ <- Fuel_Consumption_complete %>%
+  filter(year == 2035) %>%
+  group_by(scenario) %>%
+  summarise(fuel_EJyr = sum(EJyr), .groups = "drop")
+
+# Compare magnitudes
+comparison <- food_EJ %>%
+  inner_join(fuel_EJ, by = "scenario") %>%
+  mutate(
+    ratio = food_EJyr / fuel_EJyr,
+    difference_abs = abs(food_EJyr - fuel_EJyr),
+    difference_pct = abs((food_EJyr - fuel_EJyr) / fuel_EJyr) * 100
+  )
+
+comparison

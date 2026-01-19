@@ -2604,7 +2604,7 @@ print(final_figure)
 wheat_panel_styled <- fig_wheat_price_index +
   scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
   scale_color_manual(values = scenario_colors_updated, name = "Scenario") +
-  theme_bw() +
+  theme_bw() + mytheme +
   theme(
     plot.tag = element_text(face = "bold", size = 14),
     plot.tag.position = c(0.02, 0.98),
@@ -2619,7 +2619,7 @@ wheat_panel_styled <- fig_wheat_price_index +
 soybean_panel_styled <- fig_soybean_price_index +
   scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
   scale_color_manual(values = scenario_colors_updated, name = "Scenario") +
-  theme_bw() +
+  theme_bw()  + mytheme +
   theme(
     plot.tag = element_text(face = "bold", size = 14),
     plot.tag.position = c(0.02, 0.98),

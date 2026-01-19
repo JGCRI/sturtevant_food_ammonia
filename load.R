@@ -9,8 +9,12 @@
 #  PATH_TO_GCAM to change the path to GCAM output
 #  FIGS_DIR to change figures sub-directory e.g., figures/v1, v2, etc.
 
+# set bools
+INSTALL_PACKAGES <- FALSE # set to TRUE to install required packages
+QUERY_GCAM <- FALSE # set to TRUE to re-query GCAM output
+
 # install packages ----
-INSTALL_PACKAGES <- FALSE
+
 if(INSTALL_PACKAGES){
   install.packages('ggplot2')
   install.packages('dplyr')
@@ -22,7 +26,8 @@ if(INSTALL_PACKAGES){
   install.packages("purrr")
   install.packages("ggtext")
   install.packages("egg")
-
+  install.packages("scales")
+  install.packages("ggrepel")
 
   install.packages("devtools")
 
@@ -44,6 +49,8 @@ library(rmap)
 library(purrr)
 library(ggtext)
 library(egg)
+library(scales)
+library(ggrepel)
 
 # paths ----
 DATA_DIR <- "data/"
@@ -66,7 +73,6 @@ CONV_NH3_N <- 14/17    # convert mass of NH3 to mass of N
 HIST_YEARS <- c(1975, 1990, 2005, 2010, 2015, 2020, 2025)
 
 # query GCAM ----
-QUERY_GCAM <- FALSE # set to TRUE to re-query GCAM output
 OUTPUTFILE <- "food_ammonia.proj"
 
 if (QUERY_GCAM) {

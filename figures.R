@@ -1779,9 +1779,6 @@ if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig3_combo_macro.pdf"), height = 19, wi
 
 ### Jill addition 11/20/2025 map
 # Mapping food demand total kcal/person/day
-library(ggplot2)
-library(dplyr)
-library(maps)
 
 # Load world map
 world_map <- map_data("world")
@@ -1808,15 +1805,15 @@ ag_price_country_names <- ag_price_country_index %>%
 
 # Join index to map
 map_index <- world_map %>%
-  left_join(ag_price_rmap_countries, by = c("region"="country_name"))
+  left_join(ag_price_country_names, by = c("region"="country_name"))
 
 # There are country names that don't match between GCAM and Rmap, determine the differences and correct them
 unmatched_regions <- world_map %>%
-  anti_join(ag_price_rmap_countries, by = c("region" = "country_name")) %>%
+  anti_join(ag_price_country_names, by = c("region" = "country_name")) %>%
   distinct(region) %>%
   arrange(region)
 
-unmatched_country_names <- ag_price_rmap_countries %>%
+unmatched_country_names <- ag_price_country_names %>%
   anti_join(world_map, by = c("country_name" = "region")) %>%
   distinct(country_name) %>%
   arrange(country_name)
@@ -1827,7 +1824,7 @@ comparison_table <- tibble::tibble(
   country_name = c(unmatched_country_names$country_name, rep(NA, max(0, nrow(unmatched_regions) - nrow(unmatched_country_names))))
 )
 
-write_csv(comparison_table, "unmatched_country_names.csv")
+# write_csv(comparison_table, "unmatched_country_names.csv")
 
 #altered the csv manually to match the Rmap region names to the country names of
 #GCAM since Rmap doesn't report countries by iso
@@ -2076,11 +2073,11 @@ line_panel <- (fig_wheat_price_index_fixed | fig_soybean_price_index_fixed) +
     axis.title.y    = element_text(face = "bold")
   )
 
-fig3_combo <- (map_panel) / (line_panel) +
+fig3_combo_map <- (map_panel) / (line_panel) +
   plot_layout(heights = c(1, 4)) +
   plot_annotation(tag_levels = 'a') &
   theme(plot.tag = element_text(face = "bold", size = 14))
-fig3_combo
+fig3_combo_map
 
 map_centered <- (
   plot_spacer() +
@@ -2089,15 +2086,17 @@ map_centered <- (
 ) +
   plot_layout(widths = c(0.4, 3.2, 0.4))   # wider map, still centered
 
-fig3_combo <-
+fig3_combo_map_ <-
   (map_centered) /
   (line_panel) +
   plot_layout(heights = c(3.75, 4)) +
   plot_annotation(tag_levels = 'a') &
   theme(plot.tag = element_text(face = "bold", size = 14))
-fig3_combo
+fig3_combo_map_
 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "Figure3_adjustment.png"), height = 8, width = 11, units = "in")}
+
+
 ####
 ##Quantitative information for the abstract
 
@@ -2160,3 +2159,548 @@ comparison <- food_EJ %>%
   )
 
 comparison
+
+
+
+# ============================================================================#
+# Fig 3 - map + line + bubble + indices ----
+
+
+# ============================================================================#
+# DATA PREPARATION
+
+# Load world map (exclude Antarctica)
+world_map <- map_data("world") %>%
+  filter(region != "Antarctica")
+
+# Get agricultural price index by country for 2035
+ag_price_country_index <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
+  filter(year %in% ANALYSIS_YEARS, sector != "UnmanagedLand") %>%
+  group_by(region, year) %>%
+  summarise(value_sum = sum(value), .groups = "drop") %>%
+  group_by(region) %>%
+  mutate(index = value_sum / value_sum[year == 2020]) %>%
+  ungroup() %>%
+  filter(year == 2035)
+
+# Load GCAM region mappings
+iso_region_GCAM <- read_csv(paste0(DATA_DIR, "iso_GCAM_regID.csv"))
+GCAM_region_names <- read_csv(paste0(DATA_DIR, "GCAM_region_names.csv"), skip = 6)
+iso_reg <- iso_region_GCAM %>%
+  left_join(GCAM_region_names, by = "GCAM_region_ID") %>%
+  select(iso, country_name, GCAM_region_ID, region)
+
+ag_price_country_names <- ag_price_country_index %>%
+  left_join(iso_reg, by = "region") %>%
+  rename(GCAM_region = region)
+
+# Load name mapping and fix country names
+name_map <- read_csv("unmatched_countries.csv")
+world_map_fixed <- world_map %>%
+  left_join(name_map, by = "region") %>%
+  mutate(country_name = coalesce(country_name, region))
+
+# Join price index to map
+map_index <- world_map_fixed %>%
+  left_join(ag_price_country_names, by = "country_name") %>%
+  mutate(
+    index_pct = (index - 1) * 100,
+    index_group = case_when(
+      is.na(index) ~ "No Data",
+      index < 1.04 ~ "< 4%",
+      index < 1.07 ~ "4-7%",
+      index < 1.10 ~ "7-10%",
+      index < 1.13 ~ "10-13%",
+      TRUE ~ "≥ 13%"
+    ),
+    index_group = factor(index_group, levels = c(
+      "< 4%", "4-7%", "7-10%", "10-13%", "≥ 13%", "No Data"
+    ))
+  )
+
+# ============================================================================#
+# FOOD DEMAND DATA
+
+food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
+  filter(year %in% ANALYSIS_YEARS) %>%
+  mutate(type = tolower(sub("FoodDemand_", "", input))) %>%
+  select(scenario, region, type, year, value)
+
+population_data <- getQuery(food_ammonia_proj, "population by region") %>%
+  filter(year %in% ANALYSIS_YEARS)
+
+macroregion_food_demand <- food_demand %>%
+  left_join(region_mapping, by = "region") %>%
+  group_by(scenario, Region, year) %>%
+  summarise(value.pcal = sum(value), .groups = "drop") %>%
+  left_join(
+    population_data %>%
+      left_join(region_mapping, by = "region") %>%
+      group_by(scenario, Region, year) %>%
+      summarise(value.pop = sum(value), .groups = "drop"),
+    by = c("scenario", "Region", "year")
+  ) %>%
+  mutate(kcal_per_capita_day = value.pcal * CONV_PCAL_MCAL / value.pop / DAYS_PER_YEAR)
+
+# ============================================================================#
+# SCENARIO COLOR SCHEME
+
+scenario_colors_updated <- c(
+  "elec_NH3_hicost" = "#d95f02",
+  "elec_NH3_hicost_NH3ship" = "#fc8d62",
+  "elec_NH3_locost" = "#7570b3",
+  "elec_NH3_locost_NH3ship" = "#b3a9d4",
+  "NGCCS_NH3" = "#1b7837",
+  "NGCCS_NH3_NH3ship" = "#7fbf7b"
+)
+
+# ============================================================================#
+# FOOD SECURITY STRESS INDEX
+
+food_demand_2035 <- macroregion_food_demand %>%
+  filter(year == 2035)
+
+stress_index <- food_demand_2035 %>%
+  group_by(Region) %>%
+  summarise(
+    mean_kcal = mean(kcal_per_capita_day),
+    cv = sd(kcal_per_capita_day) / mean(kcal_per_capita_day) * 100,
+    .groups = "drop"
+  ) %>%
+  left_join(
+    ag_price_country_index %>%
+      left_join(region_mapping, by = c("region" = "region")) %>%
+      group_by(Region) %>%
+      summarise(avg_price_increase = mean((index - 1) * 100), .groups = "drop"),
+    by = "Region"
+  ) %>%
+  mutate(
+    supply_demand_ratio = cv / avg_price_increase
+  )
+
+# ============================================================================#
+# REGION COORDINATES FOR BAR CHARTS
+
+region_coords <- data.frame(
+  Region = c("North America", "Latin America", "Africa", "Europe",
+             "Australia_NZ", "Russia", "Southeast Asia", "East Asia",
+             "South and West Asia"),
+  map_lon = c(-100, -65, 20, 15, 135, 90, 110, 110, 70),
+  map_lat = c(45, -15, 0, 50, -27, 60, 5, 35, 25),
+  bar_lon = c(-140, -95, -10, -25, 115, 75, 165, 115, 72), # less neg move right; higher number move right
+  bar_lat = c(25, -35, -20, 30, -50, 55, 5, 25, -15) # higher number move up
+)
+
+# ============================================================================#
+# BAR CHART DATA
+
+{
+  scale_factor <- 150
+  bar_width <- 3.5
+  bar_spacing <- 4.2
+
+  bar_data <- food_demand_2035 %>%
+    left_join(region_coords, by = "Region") %>%
+    mutate(
+      scenario = factor(scenario, levels = names(scenario_colors_updated)),
+      n_scenarios = length(unique(scenario)),
+      scenario_pos = as.numeric(scenario) - (n_scenarios + 1) / 2,
+      x = bar_lon + scenario_pos * bar_spacing,
+      y0 = bar_lat,
+      y1 = bar_lat + kcal_per_capita_day / scale_factor
+    )
+
+  # Global maximum line
+  global_max_kcal <- max(food_demand_2035$kcal_per_capita_day)
+  global_max_lines <- region_coords %>%
+    mutate(
+      y = bar_lat + global_max_kcal / scale_factor,
+      x_start = bar_lon - (bar_spacing * length(unique(bar_data$scenario)) / 2) - 1,
+      x_end = bar_lon + (bar_spacing * length(unique(bar_data$scenario)) / 2) + 1
+    )
+
+  # Y-axis ticks
+  tick_vals <- seq(0, 4000, 1000)
+  y_ticks <- expand.grid(
+    Region = unique(bar_data$Region),
+    tick_val = tick_vals
+  ) %>%
+    left_join(region_coords, by = "Region") %>%
+    mutate(
+      y = bar_lat + tick_val / scale_factor,
+      x_label = bar_lon - (bar_spacing * length(unique(bar_data$scenario)) / 2) - 2,
+      label = format(tick_val, big.mark = ",")
+    )
+
+  # Y-axis lines
+  y_axis_lines <- region_coords %>%
+    mutate(
+      x = bar_lon - (bar_spacing * length(unique(bar_data$scenario)) / 2) - 1,
+      y_start = bar_lat,
+      y_end = bar_lat + 4000 / scale_factor
+    )
+
+  # Connection lines
+  connection_lines <- region_coords
+
+  region_labels <- region_coords %>%
+    left_join(stress_index, by = "Region") %>%
+    mutate(label_y = bar_lat - 4,
+           label_text = paste0(Region, "\n(", round(avg_price_increase, 1), "%)"))
+
+
+  # ============================================================================#
+  # PANEL A: MAP
+
+  price_colors <- c(
+    "< 4%" = "#ffffd4",
+    "4-7%" = "#fed98e",
+    "7-10%" = "#fe9929",
+    "10-13%" = "#d95f0e",
+    "≥ 13%" = "#7f2704",
+    "No Data" = "grey80"
+  )
+
+  map_panel <- ggplot() +
+    geom_polygon(
+      data = map_index,
+      aes(x = long, y = lat, group = group, fill = index_group),
+      color = "white", size = 0.1
+    ) +
+    scale_fill_manual(
+      values = price_colors,
+      name = "Ag Price Change\n2020→2035",
+      drop = FALSE
+    ) +
+    geom_curve(
+      data = connection_lines,
+      aes(x = map_lon, y = map_lat, xend = bar_lon, yend = bar_lat),
+      curvature = 0.2, color = "grey50", size = 0.3, alpha = 0.5, linetype = "dashed"
+    ) +
+    geom_segment(
+      data = y_axis_lines,
+      aes(x = x, xend = x, y = y_start, yend = y_end),
+      color = "grey30", size = 0.4
+    ) +
+    geom_segment(
+      data = y_ticks,
+      aes(x = x_label + 1, xend = x_label + 1.5, y = y, yend = y),
+      color = "grey30", size = 0.3
+    ) +
+    geom_text(
+      data = y_ticks,
+      aes(x = x_label, y = y, label = label),
+      hjust = 1, size = 2.2, color = "grey20"
+    ) +
+    geom_text(
+      data = region_coords %>% slice(1),
+      aes(x = bar_lon - 20, y = bar_lat + 1500/scale_factor),
+      label = "kcal/p/d", angle = 90, hjust = 0.5, size = 2.8,
+      fontface = "bold", color = "grey30"
+    ) +
+    geom_rect(
+      data = bar_data,
+      aes(xmin = x - bar_width/2, xmax = x + bar_width/2, ymin = y0, ymax = y1),
+      fill = scenario_colors_updated[match(bar_data$scenario, names(scenario_colors_updated))],
+      color = NA, alpha = 0.85
+    ) +
+    geom_segment(
+      data = global_max_lines,
+      aes(x = x_start, xend = x_end, y = y, yend = y),
+      linetype = "dashed", color = "black", size = 0.75
+    ) +
+    geom_segment(
+      data = region_coords,
+      aes(x = bar_lon - bar_spacing * 3.5, xend = bar_lon + bar_spacing * 3.5,
+          y = bar_lat, yend = bar_lat),
+      color = "grey30", size = 0.4
+    ) +
+    geom_text(
+      data = region_labels,
+      aes(x = bar_lon, y = label_y, label = label_text),
+      size = 2.5, fontface = "bold", color = "grey20"
+    ) +
+    coord_fixed(1.3, xlim = c(-180, 180), ylim = c(-60, 85)) +
+    theme_void() +
+    theme(
+      legend.position = c(0.01, 0.15),
+      legend.justification = c(0, 0),
+      legend.background = element_rect(fill = alpha("white", 0.9), color = NA),
+      legend.title = element_text(face = "bold", size = 9),
+      legend.text = element_text(size = 8),
+      legend.key.size = unit(0.8, "lines"),
+      legend.spacing.y = unit(0.2, "lines"),
+      plot.margin = margin(5, 5, 5, 5),
+      plot.tag = element_text(face = "bold", size = 14),
+      plot.tag.position = c(0.01, 0.99)
+    ) +
+    labs(tag = "a")
+}
+
+map_panel
+
+# ============================================================================#
+# PANEL B: GLOBAL TIME SERIES
+
+global_food_demand <- macroregion_food_demand %>%
+  group_by(scenario, year) %>%
+  summarise(
+    total_pcal = sum(value.pcal),
+    total_pop = sum(value.pop),
+    global_kcal = total_pcal * CONV_PCAL_MCAL / total_pop / DAYS_PER_YEAR,
+    .groups = "drop"
+  )
+
+timeseries_panel <- ggplot(global_food_demand,
+                           aes(x = year, y = global_kcal, color = scenario, group = scenario)) +
+  geom_line(size = 0.7, alpha = 0.8) +
+  geom_point(size = 2, alpha = 0.9) +
+  scale_color_manual(values = scenario_colors_updated, name = "Scenario") +
+  scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
+  scale_y_continuous(labels = comma, expand = c(0.02, 0)) +
+  labs(x = "Year", y = "Global Avg kcal/person/day", tag = "b") +
+  theme_bw() +
+  theme(
+    axis.title = element_text(face = "bold", size = 10),
+    axis.text = element_text(size = 9),
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.title = element_text(face = "bold", size = 10),
+    legend.text = element_text(size = 9),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "grey90", size = 0.3),
+    plot.margin = margin(10, 10, 10, 10),
+    plot.tag = element_text(face = "bold", size = 14),
+    plot.tag.position = c(0.02, 0.98)
+  ) +
+  guides(color = guide_legend(nrow = 2, title.position = "top", title.hjust = 0.5))
+
+# ============================================================================#
+# PANEL C: BUBBLE CHART
+
+# Price increase vs. demand variability across scenarios
+stress_panel <- ggplot(stress_index,
+                       aes(x = avg_price_increase, y = cv,
+                           color = supply_demand_ratio,
+                           size = mean_kcal)) +
+  geom_point(alpha = 0.7) +
+  geom_text_repel(
+    aes(label = Region),
+    size = 3, box.padding = 0.5, max.overlaps = 15,
+    show.legend = FALSE, color = "grey20"
+  ) +
+  scale_color_gradient2(
+    low = "#d95f02",
+    mid = "#ffffbf",
+    high = "#1a9850",
+    midpoint = median(stress_index$supply_demand_ratio, na.rm = TRUE),
+    name = "CV/Price"
+  ) +
+  scale_size_continuous(
+    name = "Mean Food Demand\n(kcal/p/d)",
+    range = c(3, 12),
+    labels = comma
+  ) +
+  labs(x = "Average Ag Price Increase (%)", y = "Food Demand Coeff. of Variation (%)", tag = "c") +
+  theme_bw() +
+  theme(
+    axis.title = element_text(face = "bold", size = 10),
+    axis.text = element_text(size = 9),
+    legend.position = "right",
+    legend.title = element_text(face = "bold", size = 9),
+    legend.text = element_text(size = 8),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "grey90", size = 0.3),
+    plot.margin = margin(10, 10, 10, 10),
+    plot.tag = element_text(face = "bold", size = 14),
+    plot.tag.position = c(0.02, 0.98)
+  )
+
+# with quadrants
+# Calculate midpoints for quadrant lines
+x_mid <- median(stress_index$avg_price_increase, na.rm = TRUE)
+y_mid <- median(stress_index$cv, na.rm = TRUE)
+
+stress_panel <- ggplot(stress_index,
+                       aes(x = avg_price_increase, y = cv,
+                           color = supply_demand_ratio,
+                           size = mean_kcal)) +
+  # Add quadrant reference lines
+  geom_hline(yintercept = y_mid, linetype = "dashed", color = "grey40", size = 0.5) +
+  geom_vline(xintercept = x_mid, linetype = "dashed", color = "grey40", size = 0.5) +
+  # Quadrant labels
+  annotate("text", x = min(stress_index$avg_price_increase) + 0.5,
+           y = max(stress_index$cv) - 0.01,
+           label = "High Demand Variability\nLow Price Pressure",
+           size = 2.5, color = "grey30", hjust = 0, vjust = 1, fontface = "italic") +
+  annotate("text", x = max(stress_index$avg_price_increase) - 0.5,
+           y = max(stress_index$cv) - 0.01,
+           label = "High Demand Variability\nHigh Price Pressure",
+           size = 2.5, color = "grey30", hjust = 1, vjust = 1, fontface = "italic") +
+  annotate("text", x = min(stress_index$avg_price_increase) + 0.5,
+           y = min(stress_index$cv) + 0.01,
+           label = "Low Demand Variability\nLow Price Pressure",
+           size = 2.5, color = "grey30", hjust = 0, vjust = 0, fontface = "italic") +
+  annotate("text", x = max(stress_index$avg_price_increase) - 0.5,
+           y = min(stress_index$cv) + 0.01,
+           label = "Low Demand Variability\nHigh Price Pressure",
+           size = 2.5, color = "grey30", hjust = 1, vjust = 0, fontface = "italic") +
+  # Data points
+  geom_point(alpha = 0.7) +
+  geom_text_repel(
+    aes(label = Region),
+    size = 3, box.padding = 0.5, max.overlaps = 15,
+    show.legend = FALSE, color = "grey20"
+  ) +
+  scale_color_gradient2(
+    low = "#d95f02",
+    mid = "#ffffbf",
+    high = "#1a9850",
+    midpoint = median(stress_index$supply_demand_ratio, na.rm = TRUE),
+    name = "CV/Price Ratio"
+  ) +
+  scale_size_continuous(
+    name = "Mean Food Demand\n(kcal/p/d)",
+    range = c(3, 12),
+    labels = comma
+  ) +
+  labs(x = "Average Ag Price Increase (%)",
+       y = "Food Demand Coeff. of Variation (%)",
+       tag = "c") +
+  theme_bw() +
+  theme(
+    axis.title = element_text(face = "bold", size = 10),
+    axis.text = element_text(size = 9),
+    legend.position = "right",
+    legend.title = element_text(face = "bold", size = 9),
+    legend.text = element_text(size = 8),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "grey90", size = 0.3),
+    plot.margin = margin(10, 10, 10, 10),
+    plot.tag = element_text(face = "bold", size = 14),
+    plot.tag.position = c(0.02, 0.98)
+  )
+
+# ============================================================================#
+# COMBINE PANELS
+
+combined_panels <- (timeseries_panel | stress_panel) +
+  plot_layout(widths = c(1, 1), guides = "collect") &
+  theme(legend.position = "bottom")
+
+final_figure <- map_panel / combined_panels +
+  plot_layout(heights = c(2, 1))
+
+# Display
+print(final_figure)
+
+
+
+
+# ============================================================================#
+# ARRANGE ALL PANELS
+
+# Modify wheat and soybean panels to have consistent styling
+wheat_panel_styled <- fig_wheat_price_index +
+  scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
+  scale_color_manual(values = scenario_colors_updated, name = "Scenario") +
+  theme_bw() +
+  theme(
+    plot.tag = element_text(face = "bold", size = 14),
+    plot.tag.position = c(0.02, 0.98),
+    axis.title = element_text(face = "bold", size = 10),
+    axis.text = element_text(size = 9),
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    strip.text = element_text(size = 9, face = "bold")
+  ) +
+  labs(tag = "d")
+
+soybean_panel_styled <- fig_soybean_price_index +
+  scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
+  scale_color_manual(values = scenario_colors_updated, name = "Scenario") +
+  theme_bw() +
+  theme(
+    plot.tag = element_text(face = "bold", size = 14),
+    plot.tag.position = c(0.02, 0.98),
+    axis.title = element_text(face = "bold", size = 10),
+    axis.text = element_text(size = 9),
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    strip.text = element_text(size = 9, face = "bold")
+  ) +
+  labs(tag = "e")
+
+# Combine all bottom panels (4 panels in 2 rows)
+bottom_panels <- (timeseries_panel | stress_panel) /
+  (wheat_panel_styled | soybean_panel_styled) +
+  plot_layout(heights = c(1, 1), guides = "collect") &
+  theme(legend.position = "bottom", legend.direction = "horizontal")
+
+# Final figure: map on top, 4 panels below
+final_figure_1 <- map_panel / bottom_panels +
+  plot_layout(heights = c(2, 3))
+
+# Display
+print(final_figure_1)
+
+# Save
+if (FIGS_SAVE) {
+  ggsave(
+    paste0(FIGS_DIR, "Food_Security_Map_Complete1.png"),
+    plot = final_figure_1,
+    height = 16, width = 18, units = "in", dpi = 300, bg = "white"
+  )
+
+  ggsave(
+    paste0(FIGS_DIR, "Food_Security_Map_Complete1.pdf"),
+    plot = final_figure_1,
+    height = 16, width = 18, units = "in", device = cairo_pdf
+  )
+
+  cat("\n✓ Complete figure saved successfully!\n")
+}
+
+# ============================================================================#
+# SAVE
+
+if (FIGS_SAVE) {
+  ggsave(
+    paste0(FIGS_DIR, "Food_Security_Map_Final.png"),
+    plot = final_figure,
+    height = 14, width = 18, units = "in", dpi = 300, bg = "white"
+  )
+
+  ggsave(
+    paste0(FIGS_DIR, "Food_Security_Map_Final.pdf"),
+    plot = final_figure,
+    height = 14, width = 18, units = "in", device = cairo_pdf
+  )
+
+  cat("\n✓ Figure saved successfully!\n")
+}
+
+# Bubble Chart Interpretation
+# What it shows:
+#   Relationship between agricultural price increases (x-axis) and food demand variability across scenarios (y-axis) for each region.
+#
+# Key elements:
+#
+#   Bubble size = Average food demand level (bigger = more people/higher demand)
+# Bubble color = Supply/Demand balance ratio (CV/Price)
+# Orange = Supply-constrained (price shocks dominate, but demand is stable)
+# Green = Demand-uncertain (high variability in demand despite prices)
+# What it means for the study:
+#   Identifies which regions are most vulnerable to food security stress:
+#
+#   High x, Low y = Regions face price pressure but maintain stable demand (supply issues)
+# Low x, High y = Demand is volatile even with stable prices (demand-side uncertainty)
+# High x, High y = Double stress: high prices AND uncertain demand (most vulnerable)
+# Key insight:
+#   Most regions cluster in low CV area → food demand remains stable across scenarios despite price variations (your main finding). Outliers show which regions deviate from this pattern.
+
+
+# ============================================================================#
+
+
+# END OF SCRIPT ----

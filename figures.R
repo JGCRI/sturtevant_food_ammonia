@@ -673,7 +673,7 @@ ggplot(Nfert_prices %>% filter(region %in% ANALYSIS_REGIONS)) +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
   scale_y_continuous(limits = c(500, NA), breaks = seq(100, 1600, by = 100)) +
-  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario")
+  labs(x = "", y = "Agricultural Nitrogen Price (2020$ / t N)", color = "Scenario")
 
 # all regions with percentile shading
 ggplot(Nfert_prices) +
@@ -691,7 +691,7 @@ ggplot(Nfert_prices) +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
   scale_y_continuous(limits = c(500, NA), breaks = seq(100, 1600, by = 100)) +
-  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario") +
+  labs(x = "", y = "Agricultural Nitrogen Price (2020$ / t N)", color = "Scenario") +
   mytheme +
   theme(legend.position = "bottom", axis.text.x = element_text(angle = 90),
         strip.text = element_text(angle = 90, hjust = 0))
@@ -712,7 +712,7 @@ fig4b <- ggplot(Nfert_prices %>% filter(region %in% ANALYSIS_REGIONS)) +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
   scale_y_continuous(limits = c(500, NA), breaks = seq(100, 1600, by = 100)) +
-  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario") +
+  labs(x = "", y = "Agricultural Nitrogen Price (2020$ / t N)", color = "Scenario") +
   mytheme +
   theme(legend.position = "bottom", axis.text.x = element_text(angle = 90))
 
@@ -736,7 +736,7 @@ ggplot(Nfert_prices) +
   geom_text(data = h2_prices_stats,
             aes(x = max(Nfert_prices$year), y = min(Nfert_prices$cost), label = paste0("Global Min: $", round(min(Nfert_prices$cost), 0), "/t")),
             hjust = 1, vjust = 1.5, color = "green4", size = 2, alpha = 0.75) +
-  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario") +
+  labs(x = "", y = "Agricultural Nitrogen Price (2020$ / t N)", color = "Scenario") +
   facet_wrap(~region, ncol = 8) +
   scale_y_continuous(limits = c(500, 1300), breaks = seq(100, 1600, by = 100)) +
   mytheme +
@@ -763,7 +763,7 @@ ggplot(Nfert_prices %>% filter(region %in% c("India", "USA", "South Africa", "In
   geom_text(data = h2_prices_stats,
             aes(x = max(Nfert_prices$year), y = min(Nfert_prices$cost), label = paste0("Global Min: $", round(min(Nfert_prices$cost), 0), "/t")),
             hjust = 1, vjust = 1.5, color = "green4", size = 2, alpha = 0.75) +
-  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario") +
+  labs(x = "", y = "Agricultural Nitrogen Price (2020$ / t N)", color = "Scenario") +
   facet_wrap(~region, ncol = 8) +
   scale_y_continuous(limits = c(500, 1300), breaks = seq(100, 1600, by = 100)) +
   mytheme +
@@ -1139,7 +1139,7 @@ ggplot(Nfert_prices %>% filter(region %in% ANALYSIS_REGIONS)) +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
   scale_y_continuous(limits = c(500, NA), breaks = seq(100, 1600, by = 100)) +
-  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario") +
+  labs(x = "", y = "Agricultural Nitrogen Price (2020$ / t N)", color = "Scenario") +
   mytheme +
   theme(legend.position = "bottom", axis.text.x = element_text(angle = 90))
 

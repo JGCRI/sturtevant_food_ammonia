@@ -28,6 +28,7 @@ if(INSTALL_PACKAGES){
   install.packages("egg")
   install.packages("scales")
   install.packages("ggrepel")
+  install.packages("ggplotify")
 
   install.packages("devtools")
 
@@ -51,6 +52,8 @@ library(ggtext)
 library(egg)
 library(scales)
 library(ggrepel)
+library(ggplotify)
+
 
 # paths ----
 DATA_DIR <- "data/"

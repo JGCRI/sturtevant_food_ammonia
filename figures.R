@@ -2287,7 +2287,7 @@ region_coords <- data.frame(
              "South and West Asia"),
   map_lon = c(-100, -65, 20, 15, 135, 90, 110, 110, 70),
   map_lat = c(45, -15, 0, 50, -27, 60, 5, 35, 25),
-  bar_lon = c(-140, -95, -10, -25, 115, 75, 165, 115, 72), # less neg move right; higher number move right
+  bar_lon = c(-155, -95, -10, -25, 115, 75, 165, 115, 72), # less neg move right; higher number move right
   bar_lat = c(25, -35, -20, 30, -50, 55, 5, 25, -15) # higher number move up
 )
 
@@ -2346,7 +2346,7 @@ region_coords <- data.frame(
   region_labels <- region_coords %>%
     left_join(stress_index, by = "Region") %>%
     mutate(label_y = bar_lat - 4,
-           label_text = paste0(Region, "\n(", round(avg_price_increase, 1), "%)"))
+           label_text = paste0(Region, "\n(", round(avg_price_increase, 1), "% avg.Price ↑)"))
 
 
   # ============================================================================#
@@ -2394,9 +2394,21 @@ region_coords <- data.frame(
     ) +
     geom_text(
       data = region_coords %>% slice(1),
-      aes(x = bar_lon - 20, y = bar_lat + 1500/scale_factor),
-      label = "kcal/p/d", angle = 90, hjust = 0.5, size = 2.8,
-      fontface = "bold", color = "grey30"
+      aes(x = bar_lon - 30, y = bar_lat + 1500/scale_factor),
+      label = "Food demand (kcal/p/d)", angle = 90, hjust = 0.5, size = 2.8,
+      fontface = "bold", color = "goldenrod4"
+    ) +
+    geom_text(
+      data = region_coords %>% slice(1),
+      aes(x = bar_lon - 0, y = bar_lat - 1700/scale_factor),
+      label = "Scenario bars", angle = 0, hjust = 0.5, size = 2.8,
+      fontface = "bold", color = "goldenrod4"
+    ) +
+    geom_text(
+      data = region_coords %>% slice(1),
+      aes(x = bar_lon - 0, y = bar_lat + 3800/scale_factor),
+      label = "Global max", angle = 0, hjust = 0.5, size = 2.8,
+      fontface = "bold", color = "gray10"
     ) +
     geom_rect(
       data = bar_data,
@@ -2420,17 +2432,17 @@ region_coords <- data.frame(
       aes(x = bar_lon, y = label_y, label = label_text),
       size = 2.5, fontface = "bold", color = "grey20"
     ) +
-    coord_fixed(1.3, xlim = c(-180, 180), ylim = c(-60, 85)) +
+    coord_fixed(1.3, xlim = c(-180, 180), ylim = c(-60, 85), clip = "off") +
     theme_void() +
     theme(
-      legend.position = c(0.01, 0.15),
+      legend.position = c(0.03, 0.15),
       legend.justification = c(0, 0),
       legend.background = element_rect(fill = alpha("white", 0.9), color = NA),
       legend.title = element_text(face = "bold", size = 9),
       legend.text = element_text(size = 8),
       legend.key.size = unit(0.8, "lines"),
       legend.spacing.y = unit(0.2, "lines"),
-      plot.margin = margin(5, 5, 5, 5),
+      plot.margin = margin(0,0,0,0),
       plot.tag = element_text(face = "bold", size = 14),
       plot.tag.position = c(0.01, 0.99)
     ) +
@@ -2529,20 +2541,20 @@ stress_panel <- ggplot(stress_index,
   geom_hline(yintercept = y_mid, linetype = "dashed", color = "grey40", size = 0.5) +
   geom_vline(xintercept = x_mid, linetype = "dashed", color = "grey40", size = 0.5) +
   # Quadrant labels
-  annotate("text", x = min(stress_index$avg_price_increase) + 0.5,
+  annotate("text", x = min(stress_index$avg_price_increase) + 0.01,
            y = max(stress_index$cv) - 0.01,
            label = "High Demand Variability\nLow Price Pressure",
            size = 2.5, color = "grey30", hjust = 0, vjust = 1, fontface = "italic") +
-  annotate("text", x = max(stress_index$avg_price_increase) - 0.5,
+  annotate("text", x = max(stress_index$avg_price_increase) - 0.01,
            y = max(stress_index$cv) - 0.01,
            label = "High Demand Variability\nHigh Price Pressure",
            size = 2.5, color = "grey30", hjust = 1, vjust = 1, fontface = "italic") +
-  annotate("text", x = min(stress_index$avg_price_increase) + 0.5,
-           y = min(stress_index$cv) + 0.01,
+  annotate("text", x = min(stress_index$avg_price_increase) + 0.01,
+           y = min(stress_index$cv) + 0.03,
            label = "Low Demand Variability\nLow Price Pressure",
            size = 2.5, color = "grey30", hjust = 0, vjust = 0, fontface = "italic") +
-  annotate("text", x = max(stress_index$avg_price_increase) - 0.5,
-           y = min(stress_index$cv) + 0.01,
+  annotate("text", x = max(stress_index$avg_price_increase) - 0.01,
+           y = min(stress_index$cv) + 0.03,
            label = "Low Demand Variability\nHigh Price Pressure",
            size = 2.5, color = "grey30", hjust = 1, vjust = 0, fontface = "italic") +
   # Data points
@@ -2625,49 +2637,41 @@ soybean_panel_styled <- fig_soybean_price_index +
 
 wheat_panel_styled <- wheat_panel_styled +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1)
+    axis.text.x = element_text(angle = 90, hjust = 1)
   )
 
 soybean_panel_styled <- soybean_panel_styled +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1)
+    axis.text.x = element_text(angle = 90, hjust = 1)
   )
 
 
 ### Figure 3 combination, Version 7 -----
-library(ggplot2)
-library(cowplot)
-library(ggplotify)
-library(patchwork)
 ### 0. UPDATE TIMESERIES PANEL (no legend + 45° x‑axis)
 
 timeseries_panel <- timeseries_panel +
   theme(
     legend.position = "none",
-    axis.text.x = element_text(angle = 45, hjust = 1)
+    axis.text.x = element_text(angle = 0, hjust = 1)
   )
-
-# If you want to preserve the left-side spacing where the legend used to be:
-timeseries_block <- cowplot::plot_grid(
-  NULL,  # empty space instead of legend
-  timeseries_panel,
-  ncol       = 2,
-  rel_widths = c(0, 1),
-  align      = "h"
-)
 
 ### 1. STRESS LEGENDS (color + size extracted separately)
 
 stress_panel <- stress_panel +
   scale_color_gradientn(
-    colours = c("green3", "yellow", "red3"),
+    # colours = c("green3", "yellow", "red3"),
+    # low = "#d95f02",
+    # mid = "#ffffbf",
+    # high = "#1a9850",
+    # colors = c("#d95f02", "#ffffbf", "#1a9850"),
+    colors = c("#1a9850", "#ffffbf", "#d95f02"),
     name = "CV/Price Ratio",
     guide = guide_colorbar(
       title.position = "top",
       title.theme = element_text(size = 6, face = "bold"),
       label.theme = element_text(size = 6),
-      barheight = unit(4, "cm"),
-      barwidth  = unit(0.4, "cm")
+      barheight = unit(3, "cm"),
+      barwidth  = unit(0.5, "cm")
     )
   )
 # COLOR legend only
@@ -2678,13 +2682,11 @@ legend_stress_color <- get_legend(
       legend.position  = "right",
       legend.direction = "vertical",
       legend.key.size  = unit(4, "pt"),
-      legend.spacing.y = unit(2, "pt"),
+      legend.spacing.y = unit(1, "pt"),
       legend.text      = element_text(size = 6),
       legend.title     = element_text(size = 6)
     )
-)
-
-legend_stress_color_plot <- as.ggplot(legend_stress_color)
+) %>% as.ggplot()
 
 # SIZE legend only
 legend_stress_size <- get_legend(
@@ -2698,30 +2700,14 @@ legend_stress_size <- get_legend(
       legend.text      = element_text(size = 6),
       legend.title     = element_text(size = 6)
     )
-)
-
-legend_stress_size_plot <- as.ggplot(legend_stress_size)
+) %>% as.ggplot()
 
 # Stack stress legends vertically
-stress_legend_block <- legend_stress_color_plot / legend_stress_size_plot
+stress_legend_block <- legend_stress_color / legend_stress_size
 
-# Inner stress block (panel + legends)
-stress_inner <- cowplot::plot_grid(
-  stress_panel + theme(legend.position = "none"),
-  stress_legend_block,
-  ncol       = 2,
-  rel_widths = c(0.80, 0.20),
-  align      = "h"
-)
-
-# Make the stress panel wider, even if it shifts left
-stress_block <- cowplot::plot_grid(
-  stress_inner,
-  NULL,
-  ncol       = 2,
-  rel_widths = c(1, 0),   # 90% panel+legend, 10% right padding
-  align      = "h"
-)
+# Stress block (smaller gap)
+stress_block <- (stress_panel + theme(legend.position = "none") | stress_legend_block) +
+  plot_layout(widths = c(1, 0.2))
 
 ### 2. CROP BLOCK (wheat + soybean + shared legend)
 
@@ -2731,53 +2717,29 @@ legend_crops <- get_legend(
       legend.position  = "bottom",
       legend.direction = "horizontal"
     )
-)
-
-legend_crops_plot <- as.ggplot(legend_crops)
+) %>% as.ggplot()
 
 crop_block <-
   (wheat_panel_styled + theme(legend.position = "none")) |
   (soybean_panel_styled + theme(legend.position = "none"))
 
 crop_block_with_legend <-
-  crop_block / legend_crops_plot +
+  crop_block / legend_crops +
   plot_layout(heights = c(6, 1))
 
 
 ### 3. BOTTOM PANELS
 bottom_panels <-
-  (
-    (timeseries_block | stress_block) +
-      plot_layout(widths = c(1, 1))      # enforce equal column widths for B and C
-  ) /
-  (
-    crop_block_with_legend +
-      plot_layout(widths = c(1, 1))      # enforce equal column widths for D and E
-  ) +
-  plot_layout(heights = c(1, 1))
-
-# TOP ROW (B and C)
-top_row <-
-  (timeseries_block | stress_block) +
-  plot_layout(widths = c(1, 1))   # enforce equal column widths
-
-# BOTTOM ROW (D and E)
-bottom_row <-
+  ((timeseries_panel | stress_block) +
+     plot_layout(widths = c(1, 1.1))) /
   crop_block_with_legend +
-  plot_layout(widths = c(1, 1))   # enforce equal column widths
-
-# STACK THEM
-bottom_panels <-
-  top_row /
-  bottom_row +
-  plot_layout(heights = c(1, 1))
+  plot_layout(heights = c(0.9, 1.1), widths = c(1, 1))
 
 ### 4. FINAL FIGURE
 final_figure_1 <-
   map_panel / bottom_panels +
   plot_layout(heights = c(2, 3))
 
-windows(width = 14, height = 10)
 final_figure_1
 
 if (FIGS_SAVE) {

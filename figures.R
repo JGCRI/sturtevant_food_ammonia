@@ -2705,12 +2705,21 @@ legend_stress_size_plot <- as.ggplot(legend_stress_size)
 # Stack stress legends vertically
 stress_legend_block <- legend_stress_color_plot / legend_stress_size_plot
 
-# Stress block (smaller gap)
-stress_block <- cowplot::plot_grid(
+# Inner stress block (panel + legends)
+stress_inner <- cowplot::plot_grid(
   stress_panel + theme(legend.position = "none"),
   stress_legend_block,
   ncol       = 2,
   rel_widths = c(0.80, 0.20),
+  align      = "h"
+)
+
+# Make the stress panel wider, even if it shifts left
+stress_block <- cowplot::plot_grid(
+  stress_inner,
+  NULL,
+  ncol       = 2,
+  rel_widths = c(1, 0),   # 90% panel+legend, 10% right padding
   align      = "h"
 )
 
@@ -2737,8 +2746,30 @@ crop_block_with_legend <-
 
 ### 3. BOTTOM PANELS
 bottom_panels <-
-  (timeseries_block | stress_block) /
+  (
+    (timeseries_block | stress_block) +
+      plot_layout(widths = c(1, 1))      # enforce equal column widths for B and C
+  ) /
+  (
+    crop_block_with_legend +
+      plot_layout(widths = c(1, 1))      # enforce equal column widths for D and E
+  ) +
+  plot_layout(heights = c(1, 1))
+
+# TOP ROW (B and C)
+top_row <-
+  (timeseries_block | stress_block) +
+  plot_layout(widths = c(1, 1))   # enforce equal column widths
+
+# BOTTOM ROW (D and E)
+bottom_row <-
   crop_block_with_legend +
+  plot_layout(widths = c(1, 1))   # enforce equal column widths
+
+# STACK THEM
+bottom_panels <-
+  top_row /
+  bottom_row +
   plot_layout(heights = c(1, 1))
 
 ### 4. FINAL FIGURE

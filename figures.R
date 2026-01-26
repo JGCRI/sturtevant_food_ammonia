@@ -2603,7 +2603,7 @@ wheat_panel_styled <- fig_wheat_price_index +
     strip.text = element_text(size = 9, face = "bold")
   ) +
   labs(tag = "d") +
-  facet_wrap(~ region, labeller = region_labeller)   # ← NEW
+  facet_wrap(~ region,nrow=1, labeller = region_labeller)   # ← NEW
 
 
 # Modify soybean panel
@@ -2621,7 +2621,7 @@ soybean_panel_styled <- fig_soybean_price_index +
     strip.text = element_text(size = 9, face = "bold")
   ) +
   labs(tag = "e") +
-  facet_wrap(~ region, labeller = region_labeller)   # ← NEW
+  facet_wrap(~ region,nrow=1, labeller = region_labeller)   # ← NEW
 
 wheat_panel_styled <- wheat_panel_styled +
   theme(
@@ -2739,7 +2739,7 @@ crop_block_with_legend <-
 bottom_panels <-
   (timeseries_block | stress_block) /
   crop_block_with_legend +
-  plot_layout(heights = c(3, 3))
+  plot_layout(heights = c(1, 1))
 
 ### 4. FINAL FIGURE
 final_figure_1 <-

@@ -595,7 +595,7 @@ fig4a_redo <- ggplot(ammonia_prod_tech_plot) +
 
   geom_label(
     aes(x = year, y = pos, label = ifelse(pct >= 15, label, NA)),
-    fill = "white", alpha = 0, color = "deeppink4", size = 2.1, fontface = "bold",
+    fill = "white", alpha = 0, color = "gray40", size = 2.1, fontface = "bold",
     linewidth = 0, show.legend = FALSE
   ) +
 
@@ -605,7 +605,7 @@ fig4a_redo <- ggplot(ammonia_prod_tech_plot) +
   mytheme +
   theme(axis.title.y = element_text(face = "bold"),
         legend.position = c(0.085, 0.88),
-        legend.box.background = element_rect(colour = "deeppink4", size = 0.1),
+        legend.box.background = element_rect(colour = "gray40", size = 0.1),
         legend.spacing = unit(0.001, "cm"),
         legend.key.height = unit(0.4, "cm"))
 
@@ -673,7 +673,7 @@ ggplot(Nfert_prices %>% filter(region %in% ANALYSIS_REGIONS)) +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
   scale_y_continuous(limits = c(500, NA), breaks = seq(100, 1600, by = 100)) +
-  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario")
+  labs(x = "", y = "Agricultural Nitrogen Price (2020$ / t N)", color = "Scenario")
 
 # all regions with percentile shading
 ggplot(Nfert_prices) +
@@ -691,7 +691,7 @@ ggplot(Nfert_prices) +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
   scale_y_continuous(limits = c(500, NA), breaks = seq(100, 1600, by = 100)) +
-  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario") +
+  labs(x = "", y = "Agricultural Nitrogen Price (2020$ / t N)", color = "Scenario") +
   mytheme +
   theme(legend.position = "bottom", axis.text.x = element_text(angle = 90),
         strip.text = element_text(angle = 90, hjust = 0))
@@ -712,7 +712,7 @@ fig4b <- ggplot(Nfert_prices %>% filter(region %in% ANALYSIS_REGIONS)) +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
   scale_y_continuous(limits = c(500, NA), breaks = seq(100, 1600, by = 100)) +
-  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario") +
+  labs(x = "", y = "Agricultural Nitrogen Price (2020$ / t N)", color = "Scenario") +
   mytheme +
   theme(legend.position = "bottom", axis.text.x = element_text(angle = 90))
 
@@ -736,7 +736,7 @@ ggplot(Nfert_prices) +
   geom_text(data = h2_prices_stats,
             aes(x = max(Nfert_prices$year), y = min(Nfert_prices$cost), label = paste0("Global Min: $", round(min(Nfert_prices$cost), 0), "/t")),
             hjust = 1, vjust = 1.5, color = "green4", size = 2, alpha = 0.75) +
-  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario") +
+  labs(x = "", y = "Agricultural Nitrogen Price (2020$ / t N)", color = "Scenario") +
   facet_wrap(~region, ncol = 8) +
   scale_y_continuous(limits = c(500, 1300), breaks = seq(100, 1600, by = 100)) +
   mytheme +
@@ -763,7 +763,7 @@ ggplot(Nfert_prices %>% filter(region %in% c("India", "USA", "South Africa", "In
   geom_text(data = h2_prices_stats,
             aes(x = max(Nfert_prices$year), y = min(Nfert_prices$cost), label = paste0("Global Min: $", round(min(Nfert_prices$cost), 0), "/t")),
             hjust = 1, vjust = 1.5, color = "green4", size = 2, alpha = 0.75) +
-  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario") +
+  labs(x = "", y = "Agricultural Nitrogen Price (2020$ / t N)", color = "Scenario") +
   facet_wrap(~region, ncol = 8) +
   scale_y_continuous(limits = c(500, 1300), breaks = seq(100, 1600, by = 100)) +
   mytheme +
@@ -2582,25 +2582,13 @@ stress_panel <- ggplot(stress_index,
   )
 
 # ============================================================================#
-# COMBINE PANELS
-
-combined_panels <- (timeseries_panel | stress_panel) +
-  plot_layout(widths = c(1, 1), guides = "collect") &
-  theme(legend.position = "bottom")
-
-final_figure <- map_panel / combined_panels +
-  plot_layout(heights = c(2, 1))
-
-# Display
-print(final_figure)
-
-
-
-
-# ============================================================================#
 # ARRANGE ALL PANELS
+# Custom labeller for region names
+region_labeller <- labeller(
+  region = c("Africa_Southern" = "Africa\nSouthern")
+)
 
-# Modify wheat and soybean panels to have consistent styling
+# Modify wheat panel
 wheat_panel_styled <- fig_wheat_price_index +
   scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
   scale_color_manual(values = scenario_colors_updated, name = "Scenario") +
@@ -2614,12 +2602,15 @@ wheat_panel_styled <- fig_wheat_price_index +
     panel.grid.minor = element_blank(),
     strip.text = element_text(size = 9, face = "bold")
   ) +
-  labs(tag = "d")
+  labs(tag = "d") +
+  facet_wrap(~ region, labeller = region_labeller)   # ← NEW
 
+
+# Modify soybean panel
 soybean_panel_styled <- fig_soybean_price_index +
   scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
   scale_color_manual(values = scenario_colors_updated, name = "Scenario") +
-  theme_bw()  + mytheme +
+  theme_bw() + mytheme +
   theme(
     plot.tag = element_text(face = "bold", size = 14),
     plot.tag.position = c(0.02, 0.98),
@@ -2629,56 +2620,194 @@ soybean_panel_styled <- fig_soybean_price_index +
     panel.grid.minor = element_blank(),
     strip.text = element_text(size = 9, face = "bold")
   ) +
-  labs(tag = "e")
+  labs(tag = "e") +
+  facet_wrap(~ region, labeller = region_labeller)   # ← NEW
 
-# Combine all bottom panels (4 panels in 2 rows)
-bottom_panels <- (timeseries_panel | stress_panel) /
-  (wheat_panel_styled | soybean_panel_styled) +
-  plot_layout(heights = c(1, 1), guides = "collect") &
-  theme(legend.position = "bottom", legend.direction = "horizontal")
+wheat_panel_styled <- wheat_panel_styled +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
 
-# Final figure: map on top, 4 panels below
-final_figure_1 <- map_panel / bottom_panels +
+soybean_panel_styled <- soybean_panel_styled +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+
+### Figure 3 combination, Version 7 -----
+library(ggplot2)
+library(cowplot)
+library(ggplotify)
+library(patchwork)
+### 0. UPDATE TIMESERIES PANEL (no legend + 45° x‑axis)
+
+timeseries_panel <- timeseries_panel +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+# If you want to preserve the left-side spacing where the legend used to be:
+timeseries_block <- cowplot::plot_grid(
+  NULL,  # empty space instead of legend
+  timeseries_panel,
+  ncol       = 2,
+  rel_widths = c(0, 1),
+  align      = "h"
+)
+
+### 1. STRESS LEGENDS (color + size extracted separately)
+
+stress_panel <- stress_panel +
+  scale_color_gradientn(
+    colours = c("green3", "yellow", "red3"),
+    name = "CV/Price Ratio",
+    guide = guide_colorbar(
+      title.position = "top",
+      title.theme = element_text(size = 6, face = "bold"),
+      label.theme = element_text(size = 6),
+      barheight = unit(4, "cm"),
+      barwidth  = unit(0.4, "cm")
+    )
+  )
+# COLOR legend only
+legend_stress_color <- get_legend(
+  stress_panel +
+    guides(size = "none") +
+    theme(
+      legend.position  = "right",
+      legend.direction = "vertical",
+      legend.key.size  = unit(4, "pt"),
+      legend.spacing.y = unit(2, "pt"),
+      legend.text      = element_text(size = 6),
+      legend.title     = element_text(size = 6)
+    )
+)
+
+legend_stress_color_plot <- as.ggplot(legend_stress_color)
+
+# SIZE legend only
+legend_stress_size <- get_legend(
+  stress_panel +
+    guides(color = "none") +
+    theme(
+      legend.position  = "right",
+      legend.direction = "vertical",
+      legend.key.size  = unit(4, "pt"),
+      legend.spacing.y = unit(2, "pt"),
+      legend.text      = element_text(size = 6),
+      legend.title     = element_text(size = 6)
+    )
+)
+
+legend_stress_size_plot <- as.ggplot(legend_stress_size)
+
+# Stack stress legends vertically
+stress_legend_block <- legend_stress_color_plot / legend_stress_size_plot
+
+# Stress block (smaller gap)
+stress_block <- cowplot::plot_grid(
+  stress_panel + theme(legend.position = "none"),
+  stress_legend_block,
+  ncol       = 2,
+  rel_widths = c(0.80, 0.20),
+  align      = "h"
+)
+
+### 2. CROP BLOCK (wheat + soybean + shared legend)
+
+legend_crops <- get_legend(
+  wheat_panel_styled +
+    theme(
+      legend.position  = "bottom",
+      legend.direction = "horizontal"
+    )
+)
+
+legend_crops_plot <- as.ggplot(legend_crops)
+
+crop_block <-
+  (wheat_panel_styled + theme(legend.position = "none")) |
+  (soybean_panel_styled + theme(legend.position = "none"))
+
+crop_block_with_legend <-
+  crop_block / legend_crops_plot +
+  plot_layout(heights = c(6, 1))
+
+
+### 3. BOTTOM PANELS
+bottom_panels <-
+  (timeseries_block | stress_block) /
+  crop_block_with_legend +
+  plot_layout(heights = c(3, 3))
+
+### 4. FINAL FIGURE
+final_figure_1 <-
+  map_panel / bottom_panels +
   plot_layout(heights = c(2, 3))
 
-# Display
-print(final_figure_1)
+windows(width = 14, height = 10)
+final_figure_1
 
-# Save
 if (FIGS_SAVE) {
   ggsave(
-    paste0(FIGS_DIR, "Food_Security_Map_Complete1.png"),
-    plot = final_figure_1,
-    height = 16, width = 18, units = "in", dpi = 300, bg = "white"
+    paste0(FIGS_DIR, "Figure3_try.png"),
+    height = 14,
+    width  = 10,
+    units  = "in"
   )
-
-  ggsave(
-    paste0(FIGS_DIR, "Food_Security_Map_Complete1.pdf"),
-    plot = final_figure_1,
-    height = 16, width = 18, units = "in", device = cairo_pdf
-  )
-
-  cat("\n✓ Complete figure saved successfully!\n")
 }
+
+
+
+# Combine all bottom panels (4 panels in 2 rows)
+#bottom_panels <- (timeseries_panel | stress_panel) /
+#  (wheat_panel_styled | soybean_panel_styled) +
+#  plot_layout(heights = c(1, 1), guides = "collect") &
+#  theme(legend.position = "bottom", legend.direction = "horizontal")
+
+# Final figure: map on top, 4 panels below
+#final_figure_1 <- map_panel /bottom_panels+
+#  plot_layout(heights = c(2, 3))
+
+# Display
+#print(final_figure_1)
+
+# Save
+#if (FIGS_SAVE) {
+#  ggsave(
+#    paste0(FIGS_DIR, "Food_Security_Map_Complete1.png"),
+#    plot = final_figure_1,
+#    height = 16, width = 18, units = "in", dpi = 300, bg = "white"
+#  )
+
+#  ggsave(
+#    paste0(FIGS_DIR, "Food_Security_Map_Complete1.pdf"),
+#    plot = final_figure_1,
+#    height = 16, width = 18, units = "in", device = cairo_pdf
+#  )
+
+#  cat("\n✓ Complete figure saved successfully!\n")
+#}
 
 # ============================================================================#
 # SAVE
 
-if (FIGS_SAVE) {
-  ggsave(
-    paste0(FIGS_DIR, "Food_Security_Map_Final.png"),
-    plot = final_figure,
-    height = 14, width = 18, units = "in", dpi = 300, bg = "white"
-  )
+#if (FIGS_SAVE) {
+#  ggsave(
+#    paste0(FIGS_DIR, "Food_Security_Map_Final.png"),
+#    plot = final_figure,
+#    height = 14, width = 18, units = "in", dpi = 300, bg = "white"
+#  )
 
-  ggsave(
-    paste0(FIGS_DIR, "Food_Security_Map_Final.pdf"),
-    plot = final_figure,
-    height = 14, width = 18, units = "in", device = cairo_pdf
-  )
+#  ggsave(
+#    paste0(FIGS_DIR, "Food_Security_Map_Final.pdf"),
+#    plot = final_figure,
+#    height = 14, width = 18, units = "in", device = cairo_pdf
+#  )
 
-  cat("\n✓ Figure saved successfully!\n")
-}
+#  cat("\n✓ Figure saved successfully!\n")
+#}
 
 # Bubble Chart Interpretation
 # What it shows:

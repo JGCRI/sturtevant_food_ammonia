@@ -1139,7 +1139,7 @@ ggplot(Nfert_prices %>% filter(region %in% ANALYSIS_REGIONS)) +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
   scale_y_continuous(limits = c(500, NA), breaks = seq(100, 1600, by = 100)) +
-  labs(x = "", y = "Ammonia Fertilizer Price (2020$ / t NH3)", color = "Scenario") +
+  labs(x = "", y = "Agricultural Nitrogen Price (2020$ / t N)", color = "Scenario") +
   mytheme +
   theme(legend.position = "bottom", axis.text.x = element_text(angle = 90))
 

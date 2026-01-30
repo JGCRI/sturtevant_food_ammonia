@@ -1824,7 +1824,7 @@ comparison_table <- tibble::tibble(
   country_name = c(unmatched_country_names$country_name, rep(NA, max(0, nrow(unmatched_regions) - nrow(unmatched_country_names))))
 )
 
-# write_csv(comparison_table, "unmatched_country_names.csv")
+# write_csv(comparison_table, paste0(DATA_DIR, "unmatched_countries.csv"))
 
 #altered the csv manually to match the Rmap region names to the country names of
 #GCAM since Rmap doesn't report countries by iso

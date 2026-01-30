@@ -2,17 +2,17 @@
 
 # sturtevant-etal_202X_Journal
 
-**Food security impacts of ammonia energy transformation**
+**Global Food Security Impacts of Ammonia Market Shocks**
 
-Jillian Sturtevant<sup>1</sup>, Page Kyle<sup>2\*</sup>, Paul Wolfram<sup>2</sup>, Hassan Niazi<sup>2</sup>, Xin Zhang<sup>1</sup>, Sarah Garvey<sup>1</sup>, et al.
+Jillian Sturtevant<sup>1</sup>, Page Kyle<sup>2\*</sup>, Xin Zhang<sup>1</sup>, Paul Wolfram<sup>2</sup>, Hassan Niazi<sup>2</sup> 
 
 <sup>1 </sup> Appalachian Laboratory, University of Maryland Center for Environmental Science (UMCES); <sup>2 </sup> Joint Global Change Research Institute, Pacific Northwest National Laboratory (JGCRI-PNNL)
 
-\* corresponding authors: jillian.sturtevant@umces.edu | pkyle@pnnl.gov
+\* corresponding author: pkyle@pnnl.gov
 
 ## Abstract
 
-Using ammonia to mitigate CO<sub>2</sub> emissions from maritime shipping poses potentially major food security risks. Ammonia is the prime source of nitrogen used in fertilizers. At the same time, ammonia demands for decarbonizing shipping fuels may exceed those for agriculture. This study uses GCAM to provide a first integrated quantitative analysis of the net impacts of simultaneous supply and demand shocks to ammonia markets globally, together and in isolation, across food and energy systems through the mid-21st century.
+Using ammonia to mitigate CO<sub>2</sub> emissions from maritime shipping puts a pressure on global ammonia supply, whose impacts on food security have not been quantified. Ammonia is the prime source of nitrogen used in fertilizers. At the same time, ammonia demands for decarbonizing shipping fuels may exceed those for agriculture. This study uses GCAM to provide a first integrated quantitative analysis of the net impacts of simultaneous supply and demand shocks to ammonia markets globally, together and in isolation, across food and energy systems through the mid-21st century.
 
 This repository contains key data files, model, and scripts used to support the analysis in the manuscript referenced below.
 
@@ -33,10 +33,10 @@ The folder structure and scripts used in this analysis are described below. Each
 The main scripts and files used in the analysis are:
 | Files     | Description                                        |
 |----|----|
-| `load.R`      | R script to extract GCAM output data using `rgcam` and load key environment variables |
-| `figures.R`   | R script to generate figures in the manuscript     |
+| [ `load.R`](load.R)      | R script to extract GCAM output data using `rgcam` and load key environment variables |
+| [ `figures.R`](figures.R)   | R script to generate figures in the manuscript     |
 | `food_ammonia.proj` | GCAM output data project file generated from `load.R` using `rgcam` |
-| `queries_ammonia.xml` | XML file containing GCAM queries used in `load.R` |
+| [ `queries_ammonia.xml`](queries_ammonia.xml) | XML file containing GCAM queries used in `load.R` |
 
 
 ## Reproduce my experiment
@@ -47,7 +47,7 @@ For first-time users of GCAM, follow the guidance on [GCAM wiki](http://jgcri.gi
 
 | Model | Version | Repository Link | DOI |
 |----|----|----|----|
-| GCAM | v7.2 | https://github.com/pkyle/gcam-core | [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11481167.svg)](https://doi.org/10.5281/zenodo.11481167) |
+| GCAM | v7.2 | https://github.com/pkyle/gcam-core (branch: `gpk/paper/agu2024`) | [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11481167.svg)](https://doi.org/10.5281/zenodo.11481167)  |
 | R | 4.5.1 | <https://cran.r-project.org/> | - |
 
 ### Steps
@@ -55,14 +55,14 @@ High-level steps to reproduce the analysis are:
 
 1.  Clone this repository: 
 ```bash
-    git clone https://github.com/JGCRI/sturtevant_food_ammonia.git
+git clone https://github.com/JGCRI/sturtevant_food_ammonia.git
 ```
 
 You will **_not_** need raw GCAM model files to run the analysis scripts, but if you want to get them, initialize and update the submodules:
 
 ```bash
-    cd sturtevant_food_ammonia
-    git submodule update --init model/gcam-core
+cd sturtevant_food_ammonia
+git submodule update --init model/gcam-core
 ```
 
 <details>
@@ -71,7 +71,7 @@ You will **_not_** need raw GCAM model files to run the analysis scripts, but if
 To stay up to date with the latest GCAM model changes, you can periodically run:
 
 ```bash
-    git submodule update --remote model/gcam-core
+git submodule update --remote model/gcam-core
 ```
 
 or manually update it by pulling changes in the folder by `cd model/gcam-core`, running `git pull`, and then returning to the root directory `cd ../../` and registering the submodule `git add model/gcam-core`.

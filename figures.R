@@ -107,6 +107,10 @@ mytheme <- theme_minimal() + theme(
   legend.title = element_text(size = 9, face = "bold")
 )
 
+rmap::map(mapGCAMReg32, labels = T, save = F)
+rmap::map(mapGCAMBasins, labels = T, save = F)
+rmap::map(mapGCAMBasins, labels = T, save = F, labelSize = 2)
+rmap::map(mapGCAMLand, labels = T, save = F)
 
 
 # plots ----
@@ -190,6 +194,7 @@ ggplot(Fuel_Consumption_complete,
   xlab("") +
   labs(color = "Fuel Type") +
   theme_bw() +
+  mytheme +
   scale_color_manual(values = alt_fuel_colors) +
   theme(axis.text.x = element_text(angle = 90), legend.position = "bottom")
 
@@ -552,7 +557,7 @@ ammonia_prod_tech <- getQuery(food_ammonia_proj, "ammonia production by tech") %
   group_by(scenario, technology, year) %>%
   summarise(value = sum(value)) %>%
   ungroup()
-
+(
 # stacked bars
 ggplot(ammonia_prod_tech, aes(x = year, y = value, fill = technology)) +
   geom_bar(stat = "identity", position = "stack") +
@@ -560,9 +565,8 @@ ggplot(ammonia_prod_tech, aes(x = year, y = value, fill = technology)) +
   scale_fill_manual(values = ammonia_tech_colors) +
   labs(x = "", y = "Ammonia Production (Mt NH3)", fill = "NH3 Technology") +
   mytheme # + theme(legend.position = c(0.1, 0.85))
-
+  )/(
 # if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig4_ammonia_prod_tech_vals.png"), height = 6, width = 8, units = "in")}
-
 # fill to 100%
 ggplot(ammonia_prod_tech, aes(x = year, y = value, fill = technology)) +
   geom_bar(stat = "identity", position = "fill") +
@@ -571,7 +575,9 @@ ggplot(ammonia_prod_tech, aes(x = year, y = value, fill = technology)) +
   scale_fill_manual(values = ammonia_tech_colors) +
   mytheme +
   theme(legend.position = "bottom")
-
+) +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
 
 # if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig4_ammonia_prod_tech_fracs.png"), height = 6, width = 8, units = "in")}
 
@@ -720,22 +726,84 @@ fig4b
 
 # if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig4_Nfert_prices.png"), height = 5, width = 8, units = "in")}
 
+# alternative metric: Price volatility (coefficient of variation) across scenarios
+Nfert_price_volatility <- Nfert_prices %>%
+  group_by(region) %>%
+  summarise(price_mean = mean(cost, na.rm = TRUE),
+            price_sd = sd(cost, na.rm = TRUE),
+            price_cv = (price_sd / price_mean) * 100,  # coefficient of variation
+            price_range = max(cost, na.rm = TRUE) - min(cost, na.rm = TRUE),
+            .groups = "drop") %>%
+  mutate(volatility_category = case_when(price_cv < 10 ~ "Stable",
+                                         price_cv < 20 ~ "Moderate",
+                                         TRUE ~ "High Volatility"))
+
+
+# heatmap: Regional price volatility by scenario sensitivity
+ggplot(Nfert_prices %>%
+         group_by(scenario, region) %>%
+         summarise(price_cv = (sd(cost, na.rm = TRUE) / mean(cost, na.rm = TRUE)) * 100,
+                   .groups = "drop")) +
+  geom_tile(aes(x = region, y = scenario, fill = price_cv), color = "white", size = 0.2) +
+  scale_fill_gradient(low = "lightblue", high = "darkred", name = "Price CV (%)") +
+  labs(x = "", y = "Scenario") +
+       # title = "Agricultural Nitrogen Price Volatility Across Scenarios",
+       # subtitle = "Higher values indicate greater price variation within each scenario-region pair") +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "right")
+
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig4_Nfert_price_volatility_heatmap.png"), height = 6, width = 10, units = "in")}
+
+# variant: Price changes over time and across regions (not by NH3ship scenarios)
+# calculate price trajectories by region and scenario base (without NH3ship suffix)
+Nfert_prices_variant <- Nfert_prices %>%
+  mutate(base_scenario = gsub("_NH3ship$", "", scenario)) %>%
+  # filter(region %in% ANALYSIS_REGIONS) %>%
+  group_by(base_scenario, region, year) %>%
+  summarise(cost_mean = mean(cost, na.rm = TRUE),
+            cost_sd = sd(cost, na.rm = TRUE),
+            .groups = "drop")
+
+# heatmap: Price trajectory across regions and years (aggregated by base scenario)
+ggplot(Nfert_prices_variant %>%
+         filter(base_scenario %in% c("elec_NH3_hicost", "elec_NH3_locost", "NGCCS_NH3")),
+       aes(x = year, y = region, fill = cost_mean)) +
+  geom_tile(color = "white", size = 0.1) +
+  facet_wrap(~base_scenario) +
+  scale_fill_gradientn(
+    colors = c("yellow", "orange", "red4"),
+    name = "N Fert Price\n(2020$/t N)") +
+  scale_x_continuous(breaks = seq(2020, 2050, by = 5)) +
+  labs(x = "Year", y = "Region") +
+       # subtitle = "Fertilizer Price Variation Over Time and Across Regions\n(NH3ship scenarios aggregated together)") +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.subtitle = element_text(hjust = 0.5),
+        strip.text = element_text(size = 10))
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig4_Nfert_price_temporal_variant.png"), height = 6, width = 10, units = "in")}
+
 ### all regions ----
 ggplot(Nfert_prices) +
+  geom_ribbon(aes(x = year, y = cost,
+                  xmin = min(year), xmax = max(year),
+                  ymin = quantile(cost, 0.25), ymax = quantile(cost, 0.75)),
+              fill = "gray92", alpha = 0.5) +
   geom_line(aes(x = year, y = cost, color = scenario, linetype = NH3ship), linewidth = 0.5) +
   # add a sample min max mean horizontal lines for reference
   geom_hline(yintercept = max(Nfert_prices$cost), linetype = "dotted", color = "orange", alpha = 0.5) +
   geom_hline(yintercept = mean(Nfert_prices$cost), linetype = "dotted", color = "gray50", alpha = 0.5) +
   geom_hline(yintercept = min(Nfert_prices$cost), linetype = "dotted", color = "purple", alpha = 0.5) +
   geom_text(data = h2_prices_stats,
-            aes(x = max(Nfert_prices$year), y = max(Nfert_prices$cost), label = paste0("Global Max: $", round(max(Nfert_prices$cost), 0), "/t")),
-            hjust = 1, vjust = -0.5, color = "red3", size = 2, alpha = 0.75) +
+            aes(x = max(Nfert_prices$year), y = max(Nfert_prices$cost), label = paste0("Global Max: $", round(max(Nfert_prices$cost), 0), "/t N")),
+            hjust = 1, vjust = -0.5, color = "red3", size = 2, alpha = 0.85) +
   geom_text(data = h2_prices_stats,
-            aes(x = max(Nfert_prices$year), y = mean(Nfert_prices$cost), label = paste0("Global Mean: $", round(mean(Nfert_prices$cost), 0), "/t")),
-            hjust = 1, vjust = -0.5, color = "gray50", size = 2, alpha = 0.75) +
+            aes(x = max(Nfert_prices$year), y = mean(Nfert_prices$cost), label = paste0("Global Mean: $", round(mean(Nfert_prices$cost), 0), "/t N")),
+            hjust = 1, vjust = -0.5, color = "gray50", size = 2, alpha = 0.85) +
   geom_text(data = h2_prices_stats,
-            aes(x = max(Nfert_prices$year), y = min(Nfert_prices$cost), label = paste0("Global Min: $", round(min(Nfert_prices$cost), 0), "/t")),
-            hjust = 1, vjust = 1.5, color = "green4", size = 2, alpha = 0.75) +
+            aes(x = max(Nfert_prices$year), y = min(Nfert_prices$cost), label = paste0("Global Min: $", round(min(Nfert_prices$cost), 0), "/t N")),
+            hjust = 1, vjust = 1.5, color = "green4", size = 2, alpha = 0.85) +
   labs(x = "", y = "Agricultural Nitrogen Price (2020$ / t N)", color = "Scenario") +
   facet_wrap(~region, ncol = 8) +
   scale_y_continuous(limits = c(500, 1300), breaks = seq(100, 1600, by = 100)) +
@@ -921,16 +989,35 @@ ggplot(ag_prices_index) +
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "ag_price_indices_allregions.png"), height = 19, width = 32, units = "in")}
 
 
+# crop colors
+# [1] "biomass"     "Corn"        "FiberCrop"   "FodderGrass"
+# [5] "FodderHerb"  "Fruits"      "Legumes"     "MiscCrop"
+# [9] "NutsSeeds"   "OilCrop"     "OilPalm"     "OtherGrain"
+# [13] "Pasture"     "Rice"        "RootTuber"   "Soybean"
+# [17] "SugarCrop"   "Vegetables"  "Wheat"       "Forest"
+
+scenario_colors_J1_crops <- c("biomass" = "gray70", "Corn" = "darkgoldenrod3", "FiberCrop" = "tan4", "FodderGrass" = "palegreen4",
+                             "FodderHerb" = "palegreen3", "Fruits" = "sienna4", "Legumes" =  "lightpink4"
+                               , "MiscCrop" = "tan2",
+                             "NutsSeeds" = "sandybrown", "OilCrop" = "goldenrod3", "OilPalm" = "goldenrod4", "OtherGrain" = "tan1",
+                             "Pasture" = "palegreen2", "Rice" = "sienna3", "RootTuber" = "sienna2",
+                             "Soybean" = "orange3",
+                             "SugarCrop" = "seashell4", "Vegetables" = "palegreen1", "Wheat" = "tan3",  # change wheat to tan3
+                             # add forest for reference
+                             "Forest" = "forestgreen")
+
 # plot ag prices all regions all crops: scenario region
 ggplot(ag_prices_index %>% filter(grepl("NH3ship", scenario))) +
   geom_line(aes(x = year, y = index, color = sector, linetype = NH3ship)) +
   facet_grid(scenario ~ region, # scales = "free_y"
   ) +
-  labs(x = "Year", y = "Price Index (rel. 2020)", color = "Scenario") +
+  labs(x = "Year", y = "Agriculture Price Index (rel. 2020)", color = "Scenario") +
   # scale_color_manual(values = scenario_colors_J1) +
-  scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
+  scale_color_manual(values = scenario_colors_J1_crops) +
+  scale_x_continuous(breaks = seq(2020, 2050, by = 15)) +
   mytheme +
-  theme(axis.text.x = element_text(angle = 90))
+  theme(axis.text.x = element_text(angle = 90),
+        strip.text = element_text(angle = 90, hjust = 0.5))
 
 
 ### diff ships ----
@@ -1001,6 +1088,33 @@ heat_food_price_indices <- ggplot(ag_price_diffs_2050,
 
 heat_food_price_indices
 
+ggplot(ag_price_diffs_2050,
+       aes(x = sector, y = region, fill = pct_diff)) +
+  geom_tile(color = "white", size = 0.1) +
+  facet_wrap(~base_scenario) +
+  # scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0, name = "Change (%)") +
+  # if value is positive keep colors red otherwise create the gradient
+  scale_fill_gradientn(colors = c("blue", "white", "red"),
+                       values = scales::rescale(c(min(ag_price_diffs_2050$pct_diff),
+                                                  0,
+                                                  max(ag_price_diffs_2050$pct_diff))),
+                       name = "Change (%)") +
+  labs(x = "", y = "") +
+       # subtitle = paste0("Agricultural Price Index Change in 2050 due to NH3 Shipping. \n",
+       #                   "Positive values indicate price increase due to NH3 shipping. ",
+       #                   # spell out unique region_sector positive combinations
+       #                   "The only positive region_sectors are: ",
+       #                   paste0(ag_price_diffs_2050 %>%
+       #                            filter(pct_diff > 0) %>%
+       #                            mutate(region_sector = paste0(region, "_", sector)) %>%
+       #                            pull(region_sector) %>%
+       #                            unique(), collapse = ", ")
+       # )) +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.subtitle = element_text(hjust = 0.5),
+        strip.text = element_text(size = 10))
+
 
 # regions on x axis for composite figure
 heat_food_price_indices_reg <- ggplot(ag_price_diffs_2050,
@@ -1032,6 +1146,34 @@ heat_food_price_indices_reg <- ggplot(ag_price_diffs_2050,
 
 
 heat_food_price_indices_reg
+
+
+ggplot(ag_price_diffs_2050,
+       aes(x = region, y = sector, fill = pct_diff)) +
+  geom_tile(color = "white", size = 0.1) +
+  facet_wrap(~base_scenario) +
+  # scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0, name = "Change (%)") +
+  # if value is positive keep colors red otherwise create the gradient
+  scale_fill_gradientn(colors = c("blue", "white", "red"),
+                       values = scales::rescale(c(min(ag_price_diffs_2050$pct_diff),
+                                                  0,
+                                                  max(ag_price_diffs_2050$pct_diff))),
+                       name = "Change (%)") +
+  labs(x = "", y = "") +
+  #      subtitle = paste0("Agricultural Price Index Change in 2050 due to NH3 Shipping. \n",
+  #                        "Positive values indicate price increase due to NH3 shipping. ",
+  #                        # spell out unique region_sector positive combinations
+  #                        "The only positive region_sectors are: ",
+  #                        paste0(ag_price_diffs_2050 %>%
+  #                                 filter(pct_diff > 0) %>%
+  #                                 mutate(region_sector = paste0(region, "_", sector)) %>%
+  #                                 pull(region_sector) %>%
+  #                                 unique(), collapse = ", ")
+  #      )) +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.subtitle = element_text(hjust = 0.5),
+        strip.text = element_text(size = 10))
 
 
 # highlight top 50 changes
@@ -1098,6 +1240,29 @@ ggplot(food_demand_changes_lab, aes(x = type, y = region, fill = pct_diff)) +
         strip.text = element_text(size = 10))
 
 
+ggplot(food_demand_changes_lab, aes(x = type, y = region, fill = pct_diff)) +
+  geom_tile(color = "white", size = 0.1) +
+  # add labels for significant changes
+  geom_text(data = filter(food_demand_changes_lab, is_significant),
+            aes(label = label_text), color = "gray50", fontface = "bold", size = 2) +
+  facet_wrap(~scenario) +
+  scale_fill_gradientn(
+    colors = c("blue", "white", "red"),
+    values = scales::rescale(c(min(food_demand_changes_lab$pct_diff),
+                               0,
+                               max(food_demand_changes_lab$pct_diff))),
+    name = "Change (%)"
+  ) +
+  labs(x = "", y = ""
+       # subtitle = paste0("Food Demand Change from 2020 to 2050. \n",
+       #                   "Range: ", round(min(food_demand_changes_lab$pct_diff), 1), "% to ",
+       #                   round(max(food_demand_changes_lab$pct_diff), 1), "%.",
+       #                   " Labels shown for top 25% of changes.")
+  ) +
+  mytheme +
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        strip.text = element_text(size = 10))
 
 ### crops indices ----
 
@@ -1243,6 +1408,7 @@ ggplot(ag_prices %>% filter(!grepl("NH3ship", scenario))) +
   ) +
   labs(x = "", y = "Price (2020$/t)", color = "Scenario") +
   scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
+  scale_color_manual(values = scenario_colors_J1_crops) +
   mytheme +
   theme(axis.text.x = element_text(angle = 90))
 
@@ -1286,6 +1452,7 @@ ggplot(food_demand, aes(x = year, y = index, fill = scenario)) +
 ) + plot_annotation(tag_levels = 'a') +
   plot_layout(guides = "collect") &
   theme(plot.tag = element_text(face = "bold", size = 14),
+        strip.text = element_text(size = 6, angle = 0, hjust = 0.5),
         legend.position = "bottom",
         axis.text.x = element_text(angle = 90),
         legend.text = element_text(size = 8),
@@ -1322,6 +1489,7 @@ ggplot(food_demand_pcd_fut, aes(x = scenario, y = index, fill = type)) +
 ) + plot_annotation(tag_levels = 'a') +
   plot_layout(guides = "collect") &
   theme(plot.tag = element_text(face = "bold", size = 14),
+        strip.text = element_text(size = 6, angle = 0, hjust = 0.5),
         legend.position = "bottom",
         axis.text.x = element_text(angle = 90),
         legend.text = element_text(size = 8),

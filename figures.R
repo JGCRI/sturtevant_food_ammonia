@@ -2992,5 +2992,62 @@ if (FIGS_SAVE) {
 
 # ============================================================================#
 
+# Food basket average price ----
+# Average price of the full commodity basket (crops and animal products) consumed by
+# FoodDemand_Staples and FoodDemand_NonStaples, per scenario/region/year:
+#   Paasche   = sum(p_t * q_t) / sum(q_t)   current-year basket
+#   Laspeyres = sum(p_t * q_0) / sum(q_0)   fixed base-year basket
+# ExtraNotes: total expenditure (P*Q) is kept for diagnostics only. It mixes the price signal with
+# the demand response to price: higher prices can cut Q (mostly animal products) so that P*Q stays
+# flat or falls, which would read as improved food security when prices have worsened it.
+# The basket average price isolates the price effect; Laspeyres also removes basket-composition shifts.
+BASKET_YEAR <- 2015
+
+food_basket_q <- getQuery(food_ammonia_proj, "food demand by commodity") %>%  # Mt
+  group_by(scenario, region, input, year) %>%
+  summarise(q = sum(value), .groups = "drop")
+
+food_basket <- food_basket_q %>%
+  left_join(getQuery(food_ammonia_proj, "food commodity prices") %>%           # 1975$/kg
+              select(scenario, region, input = sector, year, p = value),
+            by = c("scenario", "region", "input", "year")) %>%
+  left_join(food_basket_q %>% filter(year == BASKET_YEAR) %>% select(-year, q0 = q),
+            by = c("scenario", "region", "input"))
+
+food_basket_price <- food_basket %>%
+  group_by(scenario, region, year) %>%
+  summarise(expenditure = sum(p * q) * CONV_USD_1975_2020,                                # billion 2020$
+            Paasche = sum(p * q) / sum(q) * CONV_USD_1975_2020 * CONV_KG_T,               # 2020$/t
+            Laspeyres = sum(p * q0) / sum(q0) * CONV_USD_1975_2020 * CONV_KG_T,           # 2020$/t
+            .groups = "drop") %>%
+  filter(year %in% ANALYSIS_YEARS) %>%
+  pivot_longer(c(Paasche, Laspeyres), names_to = "method", values_to = "price") %>%
+  mutate(base_scenario = sub("_NH3ship$", "", scenario),
+         NH3ship = grepl("NH3ship", scenario))
+
+ggplot(food_basket_price %>% filter(region %in% ANALYSIS_REGIONS)) +
+  geom_line(aes(x = year, y = price, color = base_scenario, linetype = NH3ship)) +
+  facet_grid(method ~ region) +
+  scale_color_manual(values = scenario_colors_J1) +
+  scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
+  labs(x = "", y = "Average Food Basket Price (2020$/t)", color = "Scenario") +
+  mytheme +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 90))
+
+# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "SI_food_basket_price.png"), height = 6, width = 10, units = "in")}
+
+# NH3 shipping effect on 2050 basket price (% change vs. same scenario without NH3 shipping)
+food_basket_ship_effect <- food_basket_price %>%
+  filter(year == 2050) %>%
+  select(base_scenario, NH3ship, region, method, price) %>%
+  pivot_wider(names_from = NH3ship, values_from = price, names_prefix = "NH3ship_") %>%
+  mutate(pct_diff = 100 * (NH3ship_TRUE / NH3ship_FALSE - 1))
+
+food_basket_ship_effect %>%
+  group_by(base_scenario, method) %>%
+  summarise(min = min(pct_diff), median = median(pct_diff), max = max(pct_diff), .groups = "drop")
+
+# ============================================================================#
+
 
 # END OF SCRIPT ----

@@ -26,7 +26,7 @@ ANALYSIS_REGIONS <- c("Africa_Southern", "Brazil", "China", "India", "USA", "Ind
 
 # plot vars ----
 # TODO: rename refined liquids to petroleum
-FIGS_SAVE <- FALSE  # set to TRUE to save figures to FIGS_DIR
+FIGS_SAVE <- TRUE  # set to TRUE to save figures to FIGS_DIR
 scenario_levels <- c("Year 2020", "elec_NH3_hicost", "elec_NH3_locost", "NGCCS_NH3",
                      "elec_NH3_hicost_NH3ship", "elec_NH3_locost_NH3ship", "NGCCS_NH3_NH3ship")
 
@@ -125,7 +125,8 @@ Energy_Densities <- tibble(input = c("delivered diesel", "ammonia energy"),
 
 # multiply value of hydrogen production (EJ) by 1E9 to convert to GJ, then divide by energy density (GJ/t) to get fuel consumption (t)
 fuel_consumption <- getQuery(food_ammonia_proj, "energy inputs to maritime shipping") %>%
-  filter(year %in% ANALYSIS_YEARS) %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS) %>%
   inner_join(Energy_Densities, by = "input") %>%
   mutate(Mtyr= (value * 1e9 / (Density_GJpertonne * 1e6))) %>%
   group_by(scenario, year, Fuel) %>%
@@ -268,7 +269,8 @@ locost_amm-locost_pet
 # Fig 2 H2 prices ----
 
 h2_prices <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
-  filter(year %in% ANALYSIS_YEARS,
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS,
          sector == "H2 central production",
          grepl("elec_NH3", scenario)) %>%
   mutate(cost = value * CONV_USD_1975_2020 * H2_GJ_kg,
@@ -348,7 +350,8 @@ if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_h2_prices_usa.png"), height = 4, w
 
 ## everything H2 production ----
 hydrogen_prod_tech <- getQuery(food_ammonia_proj, "hydrogen production by tech") %>%
-  filter(year %in% ANALYSIS_YEARS) %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS) %>%
   group_by(scenario, subsector, technology, year) %>%
   summarise(value = sum(value) * 1 / H2_GJ_kg) %>%
   ungroup() %>%
@@ -421,7 +424,8 @@ ggplot(hydrogen_prod_tech_onescen, aes(x = year, y = value, fill = subsector)) +
 
 # focus on 2050 only for the elec_NH3 scenarios
 hydrogen_prod_tech_2050 <- getQuery(food_ammonia_proj, "hydrogen production by tech") %>%
-  filter(year == 2050,
+  filter(scenario %in% scenario_levels,
+         year == 2050,
          grepl("elec_NH3", scenario)) %>%
   group_by(scenario, subsector, technology, year) %>%
   summarise(value = sum(value) * 1 / H2_GJ_kg) %>%
@@ -465,7 +469,8 @@ if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig3_hydrogen_prod_2050.png"), height =
 
 # TODO: backout H2 used for ammonia/fert production and shipping to update figure 1b
 h2prodforammonia <- getQuery(food_ammonia_proj, "ammonia production by tech") %>%
-  filter(year %in% ANALYSIS_YEARS) %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS) %>%
   filter(technology == "hydrogen") %>%
   mutate(EJyr= (value * (1 - CONV_NH3_N))) %>%
   group_by(scenario, year) %>%
@@ -551,7 +556,8 @@ if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig1_combo.pdf"), height = 10, width = 
 
 ## NH3 production by tech ----
 ammonia_prod_tech <- getQuery(food_ammonia_proj, "ammonia production by tech") %>%
-  filter(year %in% ANALYSIS_YEARS) %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS) %>%
   mutate(technology = if_else(technology == "hydrogen", "electrolysis", technology),
          scenario = factor(scenario, levels = scenario_levels)) %>%
   group_by(scenario, technology, year) %>%
@@ -665,7 +671,8 @@ fig4a
 
 ## NH3 fert prices ----
 Nfert_prices <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
-  filter(year %in% ANALYSIS_YEARS,
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS,
          sector == "N fertilizer") %>%
   mutate(cost = value * CONV_USD_1975_2020 * CONV_KG_T * CONV_NH3_N,
          NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))
@@ -894,7 +901,8 @@ if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_combo.pdf"), height = 7, width = 1
 ### NH3 maps ----
 # global map of 2050 showing price increase of ammonia fertilizer relative to 2020 due to technology switching and due to ammonia shipping fuel demand
 Nfert_prices_map_2020 <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
-  filter(sector == "N fertilizer") %>%
+  filter(scenario %in% scenario_levels,
+         sector == "N fertilizer") %>%
   mutate(value = value * CONV_USD_1975_2020 * CONV_KG_T * CONV_NH3_N,
          NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))  %>%
   filter(year == "2020") %>%
@@ -906,7 +914,8 @@ p_Nfert_prices_map_2020 <- rmap::map(Nfert_prices_map_2020, save = F)
 
 
 Nfert_prices_map_2050 <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
-  filter(sector == "N fertilizer") %>%
+  filter(scenario %in% scenario_levels,
+         sector == "N fertilizer") %>%
   mutate(value = value * CONV_USD_1975_2020 * CONV_KG_T * CONV_NH3_N,
          NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))  %>%
   filter(year == "2050") %>%
@@ -918,7 +927,8 @@ p_Nfert_prices_map_2050 <- rmap::map(Nfert_prices_map_2050, save = F)
 
 
 Nfert_prices_map_2050_ship <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
-  filter(sector == "N fertilizer") %>%
+  filter(scenario %in% scenario_levels,
+         sector == "N fertilizer") %>%
   mutate(value = value * CONV_USD_1975_2020 * CONV_KG_T * CONV_NH3_N,
          NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))  %>%
   filter(year == "2050") %>%
@@ -968,7 +978,8 @@ mapx <- rmap::map(data = N_price_impact,
 
 ## prices indices ----
 ag_prices_index <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
-  filter(year %in% ANALYSIS_YEARS, sector != c("UnmanagedLand")) %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS, sector != c("UnmanagedLand")) %>%
   group_by(scenario, sector, region) %>%
   mutate(index = value / value[year == 2020]) %>% ungroup() %>%
   mutate(NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))
@@ -1195,9 +1206,10 @@ ggplot(top_changes, aes(x = region, y = sector, fill = pct_diff)) +
 
 ### heat map with labels ----
 food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS) %>%
   group_by(scenario, region, input) %>%
   mutate(index = value / value[year == 2020]) %>% ungroup() %>%
-  filter(year %in% ANALYSIS_YEARS) %>%
   mutate(type = sub("FoodDemand_", "", input)) %>%
   select(scenario, region, type, index, year, value)
 
@@ -1384,7 +1396,9 @@ ggplot(legumes_price_index,
 
 ## food commodity prices in $/t ----
 ag_prices <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
-  filter(year %in% ANALYSIS_YEARS, sector != c("UnmanagedLand")) %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS,
+         sector != c("UnmanagedLand")) %>%
   mutate(cost = value * CONV_USD_1975_2020 * CONV_KG_T,
          NH3ship = if_else(grepl("NH3ship", scenario), TRUE, FALSE))
 
@@ -1429,9 +1443,10 @@ ggplot(wheat_prices, aes(x = year, y = cost, color = scenario, linetype = NH3shi
 
 # Fig 6 food demand ----
 food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS) %>%
   group_by(scenario, region, input) %>%
   mutate(index = value / value[year == 2020]) %>% ungroup() %>%
-  filter(year %in% ANALYSIS_YEARS) %>%
   mutate(type = sub("FoodDemand_", "", input)) %>%
   select(scenario, region, type, index, year, value)
 
@@ -1671,7 +1686,8 @@ if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig3_combo_pcd.pdf"), height = 19, widt
 
 # compile macroregion food demands for alternate, mapped version of food demand figure
 macroregion_food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
-  filter(year == 2035) %>%
+  filter(scenario %in% scenario_levels,
+         year == 2035) %>%
   group_by(scenario, region, year) %>%
   summarise(value = sum(value)) %>%
   ungroup() %>%
@@ -1756,7 +1772,8 @@ if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "food_demand_map.png"), height = 6, widt
 # GHG emissions from shipping ----
 # check the emission reduction from switching to ammonia shipping
 ghg_shipping <- getQuery(food_ammonia_proj, "GHG emissions by international shipping") %>%
-  filter(year %in% ANALYSIS_YEARS) %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS) %>%
   inner_join(ghg_gwp, by = c(ghg = "GHG")) %>%
   mutate(MtCO2e = value * GWP) %>%
   group_by(scenario, ghg, year) %>%
@@ -1786,9 +1803,10 @@ if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "ghg_shipping.png"), height = 6, width =
 ### Figure 3 aggregated into macro-regions
 #food demand ----
 food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS) %>%
   group_by(scenario, region, input) %>%
   mutate(index = value / value[year == 2020]) %>% ungroup() %>%
-  filter(year %in% ANALYSIS_YEARS) %>%
   mutate(type = sub("FoodDemand_", "", input)) %>%
   select(scenario, region, type, index, year, value)
 
@@ -1839,10 +1857,11 @@ heat_fooddemandchange_macro
 ### Line graph for figure 3a
 #prepare food demand with type
 food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS) %>%
   group_by(scenario, region, input) %>%
   mutate(index = value / value[year == 2020]) %>%
   ungroup() %>%
-  filter(year %in% ANALYSIS_YEARS) %>%
   mutate(type = tolower(sub("FoodDemand_", "", input))) %>%
   select(scenario, region, type, index, year, value)
 
@@ -1953,7 +1972,9 @@ world_map <- map_data("world")
 
 # Get ag price index by country
 ag_price_country_index <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
-  filter(year %in% ANALYSIS_YEARS, sector != "UnmanagedLand") %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS,
+         sector != "UnmanagedLand") %>%
   group_by(region, year) %>%
   summarise(value_sum = sum(value), .groups = "drop") %>%
   mutate(index = value_sum / value_sum[year == 2020]) %>%
@@ -1998,7 +2019,7 @@ comparison_table <- tibble::tibble(
 #GCAM since Rmap doesn't report countries by iso
 
 # call in
-name_map <- read_csv(paste0("unmatched_countries.csv"))
+name_map <- read_csv(paste0(DATA_DIR, "unmatched_countries.csv"))
 
 # Add corrected country_name to world_map
 world_map_fixed <- world_map %>%
@@ -2045,7 +2066,8 @@ bar_spacing    <-  3.3
 
 # Prepare food demand data
 food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
-  filter(year %in% ANALYSIS_YEARS) %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS) %>%
   mutate(type = tolower(sub("FoodDemand_", "", input))) %>%
   select(scenario, region, type, year, value)
 
@@ -2343,7 +2365,9 @@ world_map <- map_data("world") %>%
 
 # Get agricultural price index by country for 2035
 ag_price_country_index <- getQuery(food_ammonia_proj, "ag commodity prices") %>%
-  filter(year %in% ANALYSIS_YEARS, sector != "UnmanagedLand") %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS,
+         sector != "UnmanagedLand") %>%
   group_by(region, year) %>%
   summarise(value_sum = sum(value), .groups = "drop") %>%
   group_by(region) %>%
@@ -2363,7 +2387,7 @@ ag_price_country_names <- ag_price_country_index %>%
   rename(GCAM_region = region)
 
 # Load name mapping and fix country names
-name_map <- read_csv("unmatched_countries.csv")
+name_map <- read_csv(paste0(DATA_DIR, "unmatched_countries.csv"))
 world_map_fixed <- world_map %>%
   left_join(name_map, by = "region") %>%
   mutate(country_name = coalesce(country_name, region))
@@ -2390,12 +2414,14 @@ map_index <- world_map_fixed %>%
 # FOOD DEMAND DATA
 
 food_demand <- getQuery(food_ammonia_proj, "food demand") %>%
-  filter(year %in% ANALYSIS_YEARS) %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS) %>%
   mutate(type = tolower(sub("FoodDemand_", "", input))) %>%
   select(scenario, region, type, year, value)
 
 population_data <- getQuery(food_ammonia_proj, "population by region") %>%
-  filter(year %in% ANALYSIS_YEARS)
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS)
 
 macroregion_food_demand <- food_demand %>%
   left_join(region_mapping, by = "region") %>%
@@ -3004,6 +3030,8 @@ if (FIGS_SAVE) {
 BASKET_YEAR <- 2015
 
 food_basket_q <- getQuery(food_ammonia_proj, "food demand by commodity") %>%  # Mt
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS) %>%
   group_by(scenario, region, input, year) %>%
   summarise(q = sum(value), .groups = "drop")
 

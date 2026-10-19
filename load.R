@@ -53,11 +53,12 @@ library(egg)
 library(scales)
 library(ggrepel)
 library(ggplotify)
+library(cowplot)
 
 
 # paths ----
 DATA_DIR <- "data/"
-FIGS_DIR <- "figures/v3/" # change the subfolder here if desired
+FIGS_DIR <- "figures/v4/" # change the subfolder here if desired
 
 # create figs dir if it doesn't exist
 if (!dir.exists(FIGS_DIR)) {
@@ -84,7 +85,8 @@ if (QUERY_GCAM) {
 
   SCENARIOS <- c("elec_NH3_hicost", "elec_NH3_hicost_NH3ship",
                  "elec_NH3_locost", "elec_NH3_locost_NH3ship",
-                 "NGCCS_NH3", "NGCCS_NH3_NH3ship")
+                 "NGCCS_NH3", "NGCCS_NH3_NH3ship",
+                 "elec_NGCCS_NH3", "elec_NGCCS_NH3_NH3ship")
   QUERYFILE <- "queries_ammonia.xml"
 
   # query

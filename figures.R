@@ -3027,7 +3027,7 @@ if (FIGS_SAVE) {
 # the demand response to price: higher prices can cut Q (mostly animal products) so that P*Q stays
 # flat or falls, which would read as improved food security when prices have worsened it.
 # The basket average price isolates the price effect; Laspeyres also removes basket-composition shifts.
-BASKET_YEAR <- 2015
+BASKET_YEAR <- 2020
 
 food_basket_q <- getQuery(food_ammonia_proj, "food demand by commodity") %>%  # Mt
   filter(scenario %in% scenario_levels,
@@ -3035,10 +3035,12 @@ food_basket_q <- getQuery(food_ammonia_proj, "food demand by commodity") %>%  # 
   group_by(scenario, region, input, year) %>%
   summarise(q = sum(value), .groups = "drop")
 
+# OtherMeat_Fish isn't modeled; just assigned an exogenous price of $1.22/kg (1975$)
 food_basket <- food_basket_q %>%
   left_join(getQuery(food_ammonia_proj, "food commodity prices") %>%           # 1975$/kg
               select(scenario, region, input = sector, year, p = value),
             by = c("scenario", "region", "input", "year")) %>%
+  mutate(p = if_else(input == "OtherMeat_Fish", 1.22, p)) %>%
   left_join(food_basket_q %>% filter(year == BASKET_YEAR) %>% select(-year, q0 = q),
             by = c("scenario", "region", "input"))
 
@@ -3053,16 +3055,21 @@ food_basket_price <- food_basket %>%
   mutate(base_scenario = sub("_NH3ship$", "", scenario),
          NH3ship = grepl("NH3ship", scenario))
 
-ggplot(food_basket_price %>% filter(region %in% ANALYSIS_REGIONS)) +
-  geom_line(aes(x = year, y = price, color = base_scenario, linetype = NH3ship)) +
+food_basket_price_index <- food_basket_price %>%
+  group_by(scenario, region, method) %>%
+  mutate(price_index = price / price[year == BASKET_YEAR]) %>%
+  ungroup()
+
+ggplot(food_basket_price_index %>% filter(region %in% ANALYSIS_REGIONS)) +
+  geom_line(aes(x = year, y = price_index, color = base_scenario, linetype = NH3ship)) +
   facet_grid(method ~ region) +
   scale_color_manual(values = scenario_colors_J1) +
   scale_x_continuous(breaks = seq(2020, 2050, by = 10)) +
-  labs(x = "", y = "Average Food Basket Price (2020$/t)", color = "Scenario") +
+  labs(x = "", y = "Indexed Food Price (2020=1)", color = "Scenario") +
   mytheme +
   theme(legend.position = "bottom", axis.text.x = element_text(angle = 90))
 
-# if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "SI_food_basket_price.png"), height = 6, width = 10, units = "in")}
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "SI_food_basket_price.png"), height = 6, width = 10, units = "in")}
 
 # NH3 shipping effect on 2050 basket price (% change vs. same scenario without NH3 shipping)
 food_basket_ship_effect <- food_basket_price %>%

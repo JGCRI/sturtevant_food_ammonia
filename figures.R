@@ -48,7 +48,8 @@ scenario_colors <- c("elec_NH3_hicost" = "red",
                      "NGCCS_NH3" = "blue",
                      "NGCCS_NH3_NH3ship" = "blue")
 
-scenario_colors_unique <- c("elec_NH3_hicost" = "red",
+scenario_colors_unique <- c("Year 2020" = "black",
+                            "elec_NH3_hicost" = "red",
                             "elec_NH3_hicost_NH3ship" = "red4",
                             "elec_NH3_locost" = "green4",
                             "elec_NH3_locost_NH3ship" = "darkgreen",
@@ -454,10 +455,10 @@ fig3 <- ggplot(h2prod_plot, aes(x = scenario, y = value, fill = subsector)) +
   geom_text(aes(y = pos, label = label, color = "white"), size = 3, show.legend = T) +
   scale_color_manual(values = "gray60") +
   scale_fill_manual(values = hydrogen_colors) +
-  labs(x = "", y = "Hydrogen Production (Mt H2)", fill = "H2 Sources", color = "text") +
+  labs(x = "", y = "Hydrogen Production in 2050 (Mt H2)", fill = "H2 Sources", color = "text") +
   guides(fill = guide_legend(override.aes = list(label = "%", size = 2)), color = "none") +
   mytheme +
-  theme(axis.text.x = element_text(angle = 10),
+  theme(axis.text.x = element_text(angle = 10, hjust = 0.6),
         axis.title.y = element_text(face = "bold"),
         legend.position = c(0.08, 0.9))
 
@@ -527,11 +528,11 @@ ggplot(hydrogen_plot_fill, aes(x = scenario, y = value, fill = subsector)) +
 
 # True fig 1 combined panels ----
 fig1_combo <- (fig1 |
-                ((fig3 + theme(legend.position = c(0.1, 0.85),
+                ((fig3 + theme(legend.position = c(0.12, 0.8),
                               legend.key.size = unit(0.5, "cm"),
                               # axis.text.x = element_text(angle = 0)
                               )) /
-                (fig2 + theme(legend.position = c(0.16, 0.19),
+                (fig2 + theme(legend.position = c(0.18, 0.25),
                               legend.spacing = unit(0.001, "cm"), # reduce vertical gap between legend breaks
                               legend.key.height = unit(0.4, "cm"), # reduce vertical spacing in legend keys
                               legend.text = element_text(size = 8)))
@@ -543,8 +544,8 @@ fig1_combo <- (fig1 |
 
 fig1_combo
 
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig1_combo.png"), height = 10, width = 15, units = "in")}
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig1_combo.pdf"), height = 10, width = 15, units = "in")}
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig1_combo.png"), height = 8, width = 12, units = "in")}
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig1_combo.pdf"), height = 8, width = 12, units = "in")}
 
 
 
@@ -717,7 +718,9 @@ fig4b <- ggplot(Nfert_prices %>% filter(region %in% ANALYSIS_REGIONS)) +
                   ymin = quantile(cost, 0.25), ymax = quantile(cost, 0.75)),
               fill = "gray92", alpha = 0.5) +
   geom_line(aes(x = year, y = cost, color = scenario, linetype = NH3ship)) +
-  facet_wrap(~region, nrow = 1) +
+  facet_wrap(~ region, nrow = 1, labeller = labeller(
+    region = c("Africa_Southern" = "Africa\nSouthern")
+  )) +
   # add a sample min max mean horizontal lines for reference
   geom_hline(yintercept = max(Nfert_prices$cost), linetype = "dotted", color = "orange", alpha = 0.5) +
   geom_hline(yintercept = mean(Nfert_prices$cost), linetype = "dotted", color = "gray50", alpha = 0.5) +
@@ -857,7 +860,8 @@ fig2_combo <- (
       )) |
      (fig4b + theme(legend.position = "bottom",
                     legend.spacing = unit(0.001, "cm"), # reduce vertical gap between legend breaks
-                    legend.key.height = unit(0.4, "cm")))
+                    legend.key.height = unit(0.4, "cm"),
+                    legend.text = element_text(size = 7)))
   ) # + plot_layout(heights = c(0.995, 1.05))
 ) +
   plot_annotation(tag_levels = 'a') +
@@ -869,8 +873,8 @@ fig2_combo <- (
 
 fig2_combo
 
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_combo.png"), height = 7, width = 14, units = "in")}
-if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_combo.pdf"), height = 7, width = 14, units = "in")}
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_combo.png"), height = 6, width = 12, units = "in")}
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "fig2_combo.pdf"), height = 6, width = 12, units = "in")}
 
 ### Original code from Hassan
 fig2_combo <- (
@@ -3083,6 +3087,37 @@ food_basket_ship_effect %>%
   summarise(min = min(pct_diff), median = median(pct_diff), max = max(pct_diff), .groups = "drop")
 
 # ============================================================================#
+
+# Ammonia production regional shares
+# Define the regions to print
+ammonia_producers <- c("China", "Middle East", "Russia", "India", "EU-15", "USA", "EU-12",
+                       "Southeast Asia", "Africa_Northern", "Indonesia", "Canada")
+ammonia_prod_total <- getQuery(food_ammonia_proj, "ammonia production by tech") %>%
+  filter(scenario %in% scenario_levels,
+         year %in% ANALYSIS_YEARS) %>%
+  mutate(region = if_else(region %in% ammonia_producers, region, "Other Regions")) %>%
+  group_by(scenario, region, year) %>%
+  summarise(value = sum(value), .groups = "drop") %>%
+  group_by(scenario, year) %>%
+  mutate(share = value / sum(value)) %>%
+  ungroup()
+ammonia_prod_total_2020 <- filter(ammonia_prod_total, year == 2020 & scenario == "NGCCS_NH3") %>%
+  mutate(scenario = "Year 2020")
+ammonia_prod_total <- bind_rows(ammonia_prod_total_2020, filter(ammonia_prod_total, year == 2050)) %>%
+  mutate(scenario = factor(scenario, levels = scenario_levels))
+
+
+ggplot(ammonia_prod_total, aes(x = scenario, y = share, fill = scenario)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~region, ncol = 6) +
+  mytheme +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 90)) +
+  scale_fill_manual(values = scenario_colors_unique) +
+  xlab("") +
+  ylab("Share") +
+  theme(axis.text.x = element_blank())
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "SI_ammonia_prod_shares.png"), height = 6, width = 10, units = "in")}
 
 
 # END OF SCRIPT ----

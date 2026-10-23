@@ -730,7 +730,8 @@ fig4b <- ggplot(Nfert_prices %>% filter(region %in% ANALYSIS_REGIONS)) +
   scale_y_continuous(limits = c(500, NA), breaks = seq(100, 1600, by = 100)) +
   labs(x = "", y = "Agricultural Nitrogen Price (2020$ / t N)", color = "Scenario") +
   mytheme +
-  theme(legend.position = "bottom", axis.text.x = element_text(angle = 90))
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 90),
+        legend.box = "vertical")
 
 fig4b
 
@@ -3119,5 +3120,72 @@ ggplot(ammonia_prod_total, aes(x = scenario, y = share, fill = scenario)) +
 
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "SI_ammonia_prod_shares.png"), height = 6, width = 10, units = "in")}
 
+# Supplemental figures on green/blue technology competition
+# n fert prices in 2030
+SI_NFert_prices <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
+  filter(!grepl("locost", scenario),
+         sector == "N fertilizer",
+         year == 2030) %>%
+  mutate(cost = value * CONV_USD_1975_2020 * CONV_KG_T * CONV_NH3_N,
+         NH3ship = if_else(grepl("NH3ship", scenario), "NH3ship", ""),
+         technology = if_else(grepl("elec_NGCCS", scenario), "green+blue",
+                              if_else(grepl("elec_NH3", scenario), "green", "blue")))
+
+ggplot(SI_NFert_prices, aes(x = NH3ship, y = cost, fill = technology)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~ region, nrow = 4, labeller = labeller(
+    region = c("Africa_Northern" = "Africa\nNorthern",
+               "Africa_Southern" = "Africa\nSouthern",
+               "Africa_Western" = "Africa\nWestern",
+               "Central America and Caribbean" = "Cent. Am.\nCaribbean",
+               "Europe_Eastern" = "Eastern\nEurope",
+               "Europe_Non_EU" = "Europe\nNon_EU",
+               "European Free Trade Association" = "Eur. FTA",
+               "South America_Northern" = "S. America\nNorthern",
+               "South America_Southern" = "S. America\nSouthern",
+               "Southeast Asia" = "Southeast\nAsia")
+  )) +
+  labs(x = "", y = "2030 N Fertilizer Price (2020$/tN)") +
+  mytheme +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 90)) +
+  scale_fill_manual(values = c("green" = "seagreen",
+                                "blue" = "blue",
+                                "green+blue" = "turquoise"))
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "SI_NFert_prices.png"), height = 6, width = 10, units = "in")}
+
+# technology choice
+SI_greenblue_production <- getQuery(food_ammonia_proj, "ammonia production by tech") %>%
+  filter(scenario== "elec_NGCCS_NH3",
+         year %in% ANALYSIS_YEARS) %>%
+  mutate(technology = if_else(technology == "hydrogen", "electrolysis", technology)) %>%
+  group_by(scenario, region, year) %>%
+  # arrange by the actual stacking order (bottom to top)
+  arrange(match(technology, c("refined liquids", "gas CCS", "gas",
+                              "electrolysis", "coal CCS", "coal"))) %>%
+  ungroup()
+  
+ggplot(SI_greenblue_production) +
+  geom_bar(aes(x = year, y = value, fill = technology), stat = "identity") +
+  facet_wrap(~ region, nrow = 4, scales = "free_y", labeller = labeller(
+    region = c("Africa_Northern" = "Africa\nNorthern",
+               "Africa_Southern" = "Africa\nSouthern",
+               "Africa_Western" = "Africa\nWestern",
+               "Central America and Caribbean" = "Cent. Am.\nCaribbean",
+               "Europe_Eastern" = "Eastern\nEurope",
+               "Europe_Non_EU" = "Europe\nNon_EU",
+               "European Free Trade Association" = "Eur. FTA",
+               "South America_Northern" = "S. America\nNorthern",
+               "South America_Southern" = "S. America\nSouthern",
+               "Southeast Asia" = "Southeast\nAsia")
+  )) +
+  scale_fill_manual(values = ammonia_tech_colors) +
+  labs(x = "", y = "Ammonia Production (Mt NH3)", fill = "NH3 Technology") +
+  mytheme +
+  theme(axis.title.y = element_text(face = "bold"),
+        axis.text.x = element_text(angle = 90),
+        legend.position = "bottom")
+
+if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "SI_greenblue_production.png"), height = 7, width = 10, units = "in")}
 
 # END OF SCRIPT ----

@@ -3121,17 +3121,16 @@ ggplot(ammonia_prod_total, aes(x = scenario, y = share, fill = scenario)) +
 if (FIGS_SAVE) {ggsave(paste0(FIGS_DIR, "SI_ammonia_prod_shares.png"), height = 6, width = 10, units = "in")}
 
 # Supplemental figures on green/blue technology competition
-# n fert prices in 2030
+# n fert prices in 2030/2050
 SI_NFert_prices <- getQuery(food_ammonia_proj, "N fertilizer and hydrogen prices") %>%
-  filter(!grepl("locost", scenario),
+  filter(scenario %in% c("elec_NGCCS_NH3", "elec_NH3_hicost", "NGCCS_NH3"),
          sector == "N fertilizer",
-         year == 2030) %>%
+         year %in% c(2030, 2050)) %>%
   mutate(cost = value * CONV_USD_1975_2020 * CONV_KG_T * CONV_NH3_N,
-         NH3ship = if_else(grepl("NH3ship", scenario), "NH3ship", ""),
          technology = if_else(grepl("elec_NGCCS", scenario), "green+blue",
                               if_else(grepl("elec_NH3", scenario), "green", "blue")))
 
-ggplot(SI_NFert_prices, aes(x = NH3ship, y = cost, fill = technology)) +
+ggplot(SI_NFert_prices, aes(x = year, y = cost, fill = technology)) +
   geom_bar(stat = "identity", position = "dodge") +
   facet_wrap(~ region, nrow = 4, labeller = labeller(
     region = c("Africa_Northern" = "Africa\nNorthern",
@@ -3145,7 +3144,7 @@ ggplot(SI_NFert_prices, aes(x = NH3ship, y = cost, fill = technology)) +
                "South America_Southern" = "S. America\nSouthern",
                "Southeast Asia" = "Southeast\nAsia")
   )) +
-  labs(x = "", y = "2030 N Fertilizer Price (2020$/tN)") +
+  labs(x = "", y = "N Fertilizer Price (2020$/tN)") +
   mytheme +
   theme(legend.position = "bottom", axis.text.x = element_text(angle = 90)) +
   scale_fill_manual(values = c("green" = "seagreen",
@@ -3164,7 +3163,16 @@ SI_greenblue_production <- getQuery(food_ammonia_proj, "ammonia production by te
   arrange(match(technology, c("refined liquids", "gas CCS", "gas",
                               "electrolysis", "coal CCS", "coal"))) %>%
   ungroup()
-  
+
+SI_greenblue_production_global <- SI_greenblue_production %>%
+  group_by(scenario, technology, year) %>%
+  summarise(value= sum(value), .groups = "drop") %>%
+  mutate(region = "Global")
+
+SI_greenblue_production <- SI_greenblue_production %>%
+  select(scenario, region, technology, year, value) %>%
+  bind_rows(SI_greenblue_production_global)
+    
 ggplot(SI_greenblue_production) +
   geom_bar(aes(x = year, y = value, fill = technology), stat = "identity") +
   facet_wrap(~ region, nrow = 4, scales = "free_y", labeller = labeller(
